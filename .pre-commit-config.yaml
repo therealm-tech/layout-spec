@@ -1,0 +1,68 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args:
+          - --allow-multiple-documents
+        exclude: (^|/)charts/[^/]+/(templates|files)/
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        # Warning-level rules (document-start among them) are printed and then
+        # ignored without this — the hook passes anyway.
+        args:
+          - --strict
+        # Helm templates and the chart's ApplicationSet template files are Go
+        # templating, not YAML, until they are rendered.
+        exclude: (^|/)charts/[^/]+/(templates|files)/
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      - id: no-co-authors
+        name: no co-authors in commit message
+        entry: '^\s*co-authored-by:|\bgenerated with\b'
+        language: pygrep
+        args:
+          - --ignore-case
+        stages:
+          - commit-msg
+      - id: jsonnetfmt
+        name: jsonnetfmt
+        entry: jsonnetfmt --in-place
+        language: system
+        files: \.(jsonnet|libsonnet)$
+      - id: helm-lint
+        name: helm lint (therealm-layout)
+        entry: helm lint --strict charts/therealm-layout -f charts/therealm-layout/values-lint.yaml
+        language: system
+        pass_filenames: false
+        files: ^charts/therealm-layout/
+      - id: helm-docs
+        name: helm-docs
+        entry: helm-docs --chart-search-root charts
+        language: system
+        pass_filenames: false
+        files: ^charts/
+      - id: trivy-chart
+        name: trivy config (therealm-layout)
+        entry: trivy config --exit-code 1 --helm-values charts/therealm-layout/values-lint.yaml charts/therealm-layout
+        language: system
+        pass_filenames: false
+        files: ^charts/therealm-layout/

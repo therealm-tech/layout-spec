@@ -1,0 +1,5 @@
+# Packaged charts and pulled dependencies.
+*.tgz
+charts/*/charts/
+
+.DS_Store

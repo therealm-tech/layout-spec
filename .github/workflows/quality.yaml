@@ -1,0 +1,73 @@
+name: quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+          cache: false
+      - name: set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+      - name: set up Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.1
+      - name: install jsonnetfmt and helm-docs
+        run: |
+          go install github.com/google/go-jsonnet/cmd/jsonnetfmt@v0.22.0
+          go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.14.2
+      - name: install pre-commit
+        run: pip install pre-commit==4.7.0
+      - name: run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  render:
+    name: render the chart against the example
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster:
+          - mgmt-1
+          - nonprod-1
+          - prod-eu-1
+    steps:
+      - name: check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+      - name: render the ApplicationSet
+        env:
+          CLUSTER: ${{ matrix.cluster }}
+        run: >-
+          helm template "root-$CLUSTER" charts/therealm-layout
+          --namespace argocd
+          -f "example/clusters/$CLUSTER/cluster.yaml"
+          --set "cluster=$CLUSTER"
