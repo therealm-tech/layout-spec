@@ -25,6 +25,10 @@ that cluster into an Argo CD `Application`. Its values are documented in
 [`example/`](example/) is a repository following the layout, with both roles
 held by the same repository.
 
+[`trlctl`](https://github.com/therealm-tech/trlctl) is the command-line tool
+for the layout: `trlctl init` scaffolds a repository and `trlctl validate`
+checks one against this specification.
+
 The specification covers the layout only: installing Argo CD, synchronising
 applications and validating files are outside its scope.
 
