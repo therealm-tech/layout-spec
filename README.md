@@ -1,7 +1,13 @@
+<p align="center">
+  <a href="https://therealm.tech"><img src="docs/assets/therealm-mark.svg" alt="THEREALM logo" width="120"></a>
+</p>
+
 # layout-spec
 
 The therealm Argo CD repository layout: where the files describing Argo CD
 deployments live, and a Helm chart that deploys a repository laid out that way.
+
+Built and maintained by [THEREALM](https://therealm.tech).
 
 ## Description
 
