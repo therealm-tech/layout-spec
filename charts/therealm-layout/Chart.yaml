@@ -3,3 +3,5 @@ name: therealm-layout
 description: ApplicationSet deploying one cluster's instances from the catalogue and platform repositories.
 type: application
 version: 0.1.0
+annotations:
+  artifacthub.io/license: MIT
