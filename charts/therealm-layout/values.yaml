@@ -1,0 +1,79 @@
+# -- (string) Cluster to deploy: the name of its Argo CD cluster Secret, and its directory under `clusters/` in the platform repository.
+cluster: ~
+repo:
+  catalog:
+    # -- (string) URL of the catalogue repository, holding `apps/`.
+    url: ~
+    # -- (string) Revision of the catalogue repository: branch, tag or commit.
+    revision: ~
+    # -- Directory of the catalogue repository the layout starts from. Empty means the repository root.
+    path: ""
+  platform:
+    # -- (string) URL of the platform repository, holding `envs/` and `clusters/`.
+    url: ~
+    # -- (string) Revision of the platform repository: branch, tag or commit.
+    revision: ~
+    # -- Directory of the platform repository the layout starts from. Empty means the repository root.
+    path: ""
+applicationSet:
+  # -- (tpl/string) Name of the ApplicationSet, rendered with Helm's `tpl`. Unset → `root-<cluster>`.
+  name: ~
+  # -- (object) Labels of the ApplicationSet.
+  labels: {}
+  # -- (object) Annotations of the ApplicationSet.
+  annotations: {}
+  # -- Go template options of the ApplicationSet. Without `missingkey=error`, a missing field renders empty instead of failing.
+  goTemplateOptions:
+    - missingkey=error
+  # -- What the ApplicationSet controller may do to the Applications it generates.
+  syncPolicy:
+    # -- Argo CD `applicationsSync` policy: `sync` creates, updates and deletes Applications.
+    applicationsSync: sync
+    # -- Keep an Application's resources in the cluster when the Application is deleted.
+    preserveResourcesOnDeletion: true
+  # -- (int) Polling interval of every git generator, in seconds. Unset → Argo CD's default.
+  requeueAfterSeconds: ~
+names:
+  # -- Maximum length of a generated Application name or Helm release name, at least 10. A longer name keeps its first `maxLength - 9` characters, then gets `-` and the first 8 hex characters of its sha256. 53 is Helm's limit on release names.
+  maxLength: 53
+application:
+  # -- (string) Name of each Application, as an ApplicationSet Go template reading `.values.cluster`, `.values.env`, `.values.app` and `.values.instance`. Unset → `<cluster>-<env>-<app>-<instance>`, shortened to `names.maxLength`. Set → used as is: keeping it short enough is then up to you.
+  name: ~
+  # -- (object) Labels of each Application. Values are ApplicationSet Go templates, with the same parameters as `application.name`.
+  labels: {}
+  # -- (object) Annotations of each Application. Values are ApplicationSet Go templates, with the same parameters as `application.name`.
+  annotations: {}
+  # -- (list) Finalizers of each Application, e.g. `resources-finalizer.argocd.argoproj.io` to delete its resources along with it.
+  finalizers: []
+  # -- Number of sync results each Application keeps in its history.
+  revisionHistoryLimit: 0
+  # -- Set `argocd.argoproj.io/manifest-generate-paths` to the layout directories of each instance, so a commit elsewhere does not regenerate its manifests. Needs a git webhook.
+  manifestGeneratePaths: true
+  # -- (string) Project of an Application whose `app.yaml` sets none. Unset → every app must set `app.project`.
+  defaultProject: ~
+  syncPolicy:
+    # -- (object) Automated sync of each Application, as in an Application's `syncPolicy.automated`. Empty → manual sync.
+    automated: {}
+    # -- (list) Sync options added to the ones each `app.yaml` declares.
+    syncOptions: []
+    # -- Retry policy of a failed sync. `null` → no retry.
+    retry:
+      # -- Maximum number of retries.
+      limit: 10
+      backoff:
+        # -- Delay before the first retry.
+        duration: 15s
+        # -- Factor applied to the delay after each retry.
+        factor: 2
+        # -- Maximum delay between two retries.
+        maxDuration: 5m
+  helm:
+    # -- (string) Helm release name of a chart app, as an ApplicationSet Go template with the same parameters as `application.name`. Unset → `<app>`, shortened to `names.maxLength`. Set → used as is: keeping it short enough is then up to you.
+    releaseName: ~
+    # -- Skip the layout's `values.yaml` files that do not exist. Disabled, every level must provide one.
+    ignoreMissingValueFiles: true
+  manifests:
+    # -- Glob of the raw manifests applied from an instance directory, relative to it.
+    include: manifests/*.yaml
+    # -- Search sub-directories of the instance directory; needed for an `include` below a sub-directory.
+    recurse: true

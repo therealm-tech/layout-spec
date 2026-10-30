@@ -1,0 +1,36 @@
+cluster: lint
+repo:
+  catalog:
+    url: https://git.example.com/catalog.git
+    revision: main
+    path: /layout/catalog/
+  platform:
+    url: https://git.example.com/platform.git
+    revision: main
+    path: layout
+applicationSet:
+  name: "appset-{{ .Values.cluster }}"
+  labels:
+    example.com/team: platform
+  annotations:
+    example.com/owner: platform
+  requeueAfterSeconds: 300
+application:
+  labels:
+    example.com/app: "{{ .values.app }}"
+  annotations:
+    example.com/instance: "{{ .values.instance }}"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  manifestGeneratePaths: false
+  defaultProject: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+  helm:
+    releaseName: "{{ .values.app }}-{{ .values.instance }}"
+names:
+  maxLength: 40

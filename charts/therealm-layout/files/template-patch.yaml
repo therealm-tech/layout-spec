@@ -1,0 +1,51 @@
+spec:
+  {{- with dig "app" "namespace" "" . }}
+  destination:
+    namespace: {{ . }}
+  {{- end }}
+  sources:
+    - repoURL: {{ dig "app" "url" $catalogURL . }}
+      targetRevision: {{ if hasKey .app "url" }}{{ .app.revision }}{{ else }}{{ $catalogRevision }}{{ end }}
+      {{- if hasKey .app "chart" }}
+      chart: {{ .app.chart }}
+      {{- else if hasKey .app "url" }}
+      path: {{ .app.path }}
+      {{- else }}
+      path: {{ $catalogPath }}{{ .app.path }}
+      {{- end }}
+      {{- /* A chart is either referenced by `chart`, or lives under apps/<app>/charts/. */}}
+      {{- if or (hasKey .app "chart") (regexMatch "^apps/[^/]+/charts/" (dig "app" "path" "" .)) }}
+      helm:
+        releaseName: {{ template "releaseName" . }}
+        ignoreMissingValueFiles: {{ $helmIgnoreMissingValueFiles }}
+        valueFiles:
+          - $catalog/{{ $catalogPath }}apps/{{ .values.app }}/values.yaml
+          - $platform/{{ $platformPath }}envs/{{ .values.env }}/{{ .values.app }}/values.yaml
+          - $platform/{{ $platformPath }}clusters/{{ .values.cluster }}/{{ .values.app }}/values.yaml
+          - $platform/{{ .instanceFile.path.path }}/values.yaml
+    - repoURL: {{ $catalogURL }}
+      targetRevision: {{ $catalogRevision }}
+      ref: catalog
+    - repoURL: {{ $platformURL }}
+      targetRevision: {{ $platformRevision }}
+      ref: platform
+      {{- end }}
+    - repoURL: {{ $platformURL }}
+      targetRevision: {{ $platformRevision }}
+      path: {{ .instanceFile.path.path }}
+      directory:
+        recurse: {{ $manifestsRecurse }}
+        include: {{ $manifestsInclude | quote }}
+  {{- $syncOptions := concat (dig "app" "syncOptions" (list) .) $extraSyncOptions }}
+  {{- $namespaceMetadata := dig "app" "managedNamespaceMetadata" (dict) . }}
+  {{- if or $syncOptions $namespaceMetadata }}
+  syncPolicy:
+    {{- with $syncOptions }}
+    syncOptions:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $namespaceMetadata }}
+    managedNamespaceMetadata:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}

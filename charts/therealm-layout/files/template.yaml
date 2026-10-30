@@ -1,0 +1,4 @@
+spec:
+  project: "{{ .app.project }}"
+  destination:
+    name: "{{ .values.cluster }}"

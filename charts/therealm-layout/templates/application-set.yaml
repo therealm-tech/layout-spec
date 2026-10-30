@@ -1,0 +1,140 @@
+{{- $cluster := required "cluster is required" .Values.cluster }}
+{{- $catalog := .Values.repo.catalog }}
+{{- $platform := .Values.repo.platform }}
+{{- $catalogURL := required "repo.catalog.url is required" $catalog.url }}
+{{- $catalogRevision := required "repo.catalog.revision is required" $catalog.revision }}
+{{- $platformURL := required "repo.platform.url is required" $platform.url }}
+{{- $platformRevision := required "repo.platform.revision is required" $platform.revision }}
+{{- $catalogPath := include "therealm-layout.prefix" $catalog.path }}
+{{- $platformPath := include "therealm-layout.prefix" $platform.path }}
+{{- $platformDepth := 0 }}
+{{- with trimAll "/" (default "" $platform.path) }}
+{{- $platformDepth = len (splitList "/" .) }}
+{{- end }}
+{{- $application := .Values.application }}
+
+{{- /*
+No clusters generator: the release targets one cluster by name, so an
+unregistered cluster shows up as failing Applications instead of none.
+In a matrix the first child wins on a shared key: the instance's app.yaml
+overrides the merge. In a merge later children win. Merge keys cannot be
+nested under goTemplate, so every merge child carries the same `values` map.
+*/}}
+{{- $instances := dict
+  "repoURL" $platformURL
+  "revision" $platformRevision
+  "pathParamPrefix" "instanceFile"
+  "files" (list (dict "path" (printf "%sclusters/%s/*/*/*/app.yaml" $platformPath $cluster)))
+  "values" (dict
+    "cluster" $cluster
+    "env" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 2))
+    "app" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 3))
+    "instance" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 4))) }}
+{{- $mergeValues := dict "app" "{{ .values.app }}" }}
+{{- $catalogApp := dict
+  "repoURL" $catalogURL
+  "revision" $catalogRevision
+  "pathParamPrefix" "catalogFile"
+  "files" (list (dict "path" (printf "%sapps/{{ .values.app }}/app.yaml" $catalogPath)))
+  "values" $mergeValues }}
+{{- $envApp := dict
+  "repoURL" $platformURL
+  "revision" $platformRevision
+  "pathParamPrefix" "envFile"
+  "files" (list (dict "path" (printf "%senvs/{{ .values.env }}/{{ .values.app }}/app.yaml" $platformPath)))
+  "values" $mergeValues }}
+{{- $clusterApp := dict
+  "repoURL" $platformURL
+  "revision" $platformRevision
+  "pathParamPrefix" "clusterAppFile"
+  "files" (list (dict "path" (printf "%sclusters/%s/{{ .values.app }}/app.yaml" $platformPath $cluster)))
+  "values" $mergeValues }}
+{{- with .Values.applicationSet.requeueAfterSeconds }}
+{{- range (list $instances $catalogApp $envApp $clusterApp) }}
+{{- $_ := set . "requeueAfterSeconds" $.Values.applicationSet.requeueAfterSeconds }}
+{{- end }}
+{{- end }}
+{{- $generators := list (dict "matrix" (dict "generators" (list
+  (dict "git" $instances)
+  (dict "merge" (dict
+    "mergeKeys" (list "values")
+    "generators" (list (dict "git" $catalogApp) (dict "git" $envApp) (dict "git" $clusterApp))))))) }}
+
+{{- /* files/ holds ApplicationSet template syntax, which Helm must not evaluate: it is read verbatim and only extended here. */}}
+{{- $template := .Files.Get "files/template.yaml" | fromYaml }}
+{{- $name := $application.name }}
+{{- if not $name }}
+{{- $name = include "therealm-layout.shortName" (dict "args" "\"%s-%s-%s-%s\" .values.cluster .values.env .values.app .values.instance" "max" .Values.names.maxLength) }}
+{{- end }}
+{{- $releaseName := $application.helm.releaseName }}
+{{- if not $releaseName }}
+{{- $releaseName = include "therealm-layout.shortName" (dict "args" "\"%s\" .values.app" "max" .Values.names.maxLength) }}
+{{- end }}
+{{- $metadata := dict "name" $name }}
+{{- with $application.labels }}
+{{- $_ := set $metadata "labels" . }}
+{{- end }}
+{{- $annotations := deepCopy (default (dict) $application.annotations) }}
+{{- if $application.manifestGeneratePaths }}
+{{- $_ := set $annotations "argocd.argoproj.io/manifest-generate-paths" (printf "/%sapps/{{ .values.app }};/%senvs/{{ .values.env }}/{{ .values.app }};/%sclusters/{{ .values.cluster }}/{{ .values.app }};/{{ .instanceFile.path.path }}" $catalogPath $platformPath $platformPath) }}
+{{- end }}
+{{- with $annotations }}
+{{- $_ := set $metadata "annotations" . }}
+{{- end }}
+{{- with $application.finalizers }}
+{{- $_ := set $metadata "finalizers" . }}
+{{- end }}
+{{- $_ := set $template "metadata" $metadata }}
+{{- $_ := set $template.spec "revisionHistoryLimit" $application.revisionHistoryLimit }}
+{{- with $application.defaultProject }}
+{{- $_ := set $template.spec "project" (printf "{{ dig \"app\" \"project\" %s . }}" (quote .)) }}
+{{- end }}
+{{- $syncPolicy := dict }}
+{{- with $application.syncPolicy.automated }}
+{{- $_ := set $syncPolicy "automated" . }}
+{{- end }}
+{{- with $application.syncPolicy.retry }}
+{{- $_ := set $syncPolicy "retry" . }}
+{{- end }}
+{{- with $syncPolicy }}
+{{- $_ := set $template.spec "syncPolicy" . }}
+{{- end }}
+{{- $patchHeader := include "therealm-layout.patchHeader" (dict
+  "catalogURL" $catalogURL
+  "catalogRevision" $catalogRevision
+  "catalogPath" $catalogPath
+  "platformURL" $platformURL
+  "platformRevision" $platformRevision
+  "platformPath" $platformPath
+  "releaseName" $releaseName
+  "application" $application) }}
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: {{ tpl (default (printf "root-%s" $cluster) .Values.applicationSet.name) $ }}
+  namespace: {{ .Release.Namespace }}
+  {{- with .Values.applicationSet.labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.applicationSet.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  goTemplate: true
+  {{- with .Values.applicationSet.goTemplateOptions }}
+  goTemplateOptions:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.applicationSet.syncPolicy }}
+  syncPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  generators:
+    {{- toYaml $generators | nindent 4 }}
+  template:
+    {{- toYaml $template | nindent 4 }}
+  templatePatch: |
+    {{- $patchHeader | nindent 4 }}
+    {{- .Files.Get "files/template-patch.yaml" | nindent 4 }}
