@@ -22,6 +22,8 @@ applicationSet:
   labels: {}
   # -- (object) Annotations of the ApplicationSet.
   annotations: {}
+  # -- (list) Finalizers of the ApplicationSet. With `resources-finalizer.argocd.argoproj.io`, deleting the ApplicationSet keeps the Applications it generated when its effective `applicationsSync` policy forbids deletion (`create-only` or `create-update`; the ApplicationSet's own policy counts only when the controller allows the policy override): the controller removes their owner references before the ApplicationSet goes. This holds for a background cascading delete, `kubectl delete`'s default, not for a foreground one, the default of an Argo CD prune or cascading Application deletion. Under `sync` or `create-delete`, the Applications are deleted with the ApplicationSet.
+  finalizers: []
   # -- Go template options of the ApplicationSet. Without `missingkey=error`, a missing field renders empty instead of failing.
   goTemplateOptions:
     - missingkey=error

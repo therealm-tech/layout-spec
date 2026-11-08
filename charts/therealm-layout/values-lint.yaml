@@ -14,6 +14,10 @@ applicationSet:
     example.com/team: platform
   annotations:
     example.com/owner: platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  syncPolicy:
+    applicationsSync: create-update
   requeueAfterSeconds: 300
 application:
   labels:
