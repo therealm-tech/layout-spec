@@ -4,7 +4,7 @@ default_install_hook_types:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -17,7 +17,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.38.0
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
     hooks:
       - id: yamllint
         # Warning-level rules (document-start among them) are printed and then
@@ -29,12 +29,12 @@ repos:
         exclude: (^|/)charts/[^/]+/(templates|files)/
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.12
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # frozen: v1.7.12
     hooks:
       - id: actionlint
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: 745eface02aef23e168a8afb6b5737818efbea95 # frozen: v0.11.0.1
+    rev: 745eface02aef23e168a8afb6b5737818efbea95  # frozen: v0.11.0.1
     hooks:
       - id: shellcheck
 
