@@ -49,3 +49,7 @@ spec:
       {{- toYaml . | nindent 6 }}
     {{- end }}
   {{- end }}
+  {{- with dig "app" "ignoreDifferences" (list) . }}
+  ignoreDifferences:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

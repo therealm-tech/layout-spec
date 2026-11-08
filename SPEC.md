@@ -320,6 +320,7 @@ configuration.
 | `namespace` | string | Namespace the instance deploys into. |
 | `syncOptions` | sequence of strings | Argo CD sync options of the instance [ARGOCD]. |
 | `managedNamespaceMetadata` | mapping | Labels and annotations Argo CD sets on `namespace` [ARGOCD]. |
+| `ignoreDifferences` | sequence of mappings | Differences between the desired and the live state of the instance's resources that Argo CD ignores [ARGOCD]. |
 
 Except as Section 6.2 requires for the catalogue level, every field is
 OPTIONAL at a given level. The constraints below apply to the effective
@@ -416,11 +417,20 @@ digest. For example, `prod-eu-west-1-production-kube-prometheus-stack-default`
 (55 characters) becomes `prod-eu-west-1-production-kube-prometheus-st-c3a6b83a`
 (53 characters).
 
-`syncOptions` and `managedNamespaceMetadata` are passed to Argo CD as they
-are. Creating `namespace` is requested through `syncOptions`
-(`CreateNamespace=true`); the layout has no separate field for it.
-`managedNamespaceMetadata` has no effect unless `namespace` is set and
+`syncOptions`, `managedNamespaceMetadata` and `ignoreDifferences` are
+passed to Argo CD as they are. Creating `namespace` is requested through
+`syncOptions` (`CreateNamespace=true`); the layout has no separate field for
+it. `managedNamespaceMetadata` has no effect unless `namespace` is set and
 `syncOptions` contains `CreateNamespace=true` [ARGOCD].
+
+Each entry of `ignoreDifferences` is an Argo CD ignore-differences entry: it
+selects resources of the instance and the fields of them that Argo CD leaves
+out when it compares their live state with their desired state, such as
+fields a controller writes after deployment or data the source generates
+anew at each rendering [ARGOCD]. It changes the comparison only: a sync still
+applies those fields unless `syncOptions` contains
+`RespectIgnoreDifferences=true`; the layout has no separate field for it
+[ARGOCD].
 
 ## 9. The `cluster.yaml` File
 
@@ -480,8 +490,9 @@ key that a less specific level sets. An app whose catalogue `app.yaml` sets
 by the catalogue cannot be removed.
 
 In particular, labels and annotations under `managedNamespaceMetadata`
-accumulate across levels, while `syncOptions` set at a level replaces the
-whole list of the levels below it.
+accumulate across levels, while `syncOptions` or `ignoreDifferences` set at
+a level replaces the whole sequence of the levels below it: its entries are
+never combined with the entries of another level.
 
 ### 10.3. Effective Helm values
 
@@ -515,11 +526,11 @@ confidentiality is what the split exists for.
 
 The split protects confidentiality, not integrity. Through `app.yaml`
 (`url`, `chart`, `path`, `revision`, `project`, `namespace`, `syncOptions`,
-`managedNamespaceMetadata`), `values.yaml`, the sources it holds under
-`apps/<app>/`, and the remote bases of its Kustomize sources, the repo
-catalogue decides what is deployed, into which namespace, under which Argo
-CD project, and with which namespace labels, on every cluster that has an
-instance of the app. Write access to the repo catalogue at a revision a
+`managedNamespaceMetadata`, `ignoreDifferences`), `values.yaml`, the sources
+it holds under `apps/<app>/`, and the remote bases of its Kustomize sources,
+the repo catalogue decides what is deployed, into which namespace, under
+which Argo CD project, with which namespace labels, and which drift Argo CD
+does not report, on every cluster that has an instance of the app. Write access to the repo catalogue at a revision a
 cluster reads (`repo.catalog.revision`) is equivalent to write access to
 every cluster that has an instance of the app. A source, remote base or
 chart dependency outside both repositories extends the same trust to that
@@ -531,6 +542,11 @@ levels can replace any catalogue value, `chart`, `path`, `url` and
 `revision` included, but cannot remove any key the catalogue `app.yaml` sets
 (Section 10.2); its `values.yaml` levels can remove catalogue values with
 null (Section 10.3).
+
+An `ignoreDifferences` entry hides from Argo CD every change to the fields it
+selects, including a change made in the cluster outside the layout; with
+`RespectIgnoreDifferences=true`, a sync does not revert it either. An entry
+SHOULD select only the resources and fields that are expected to drift.
 
 Adding an app named like an env reclassifies that env's directory on every
 cluster that reads the catalogue (Section 5), which removes its
@@ -585,7 +601,9 @@ holds four apps:
 - a Jsonnet source with a library (`team-quotas`).
 
 It has three envs and three clusters, one of which holds two envs and one
-of which pins the repo catalogue to a tag.
+of which pins the repo catalogue to a tag. On that cluster, the instance of
+`whoami` adds a HorizontalPodAutoscaler from its `manifests/` and has Argo
+CD ignore the replica count it sets on the app's Deployment.
 
 [`charts/therealm-layout/`](charts/therealm-layout/) is a Helm chart that
 implements this layout for Argo CD; it is outside the scope of this
