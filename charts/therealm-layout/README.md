@@ -29,6 +29,7 @@ It implements the layout specified in [`SPEC.md`](../../SPEC.md).
 | application.syncPolicy.retry.limit | int | `10` | Maximum number of retries. |
 | application.syncPolicy.syncOptions | list | `[]` | Sync options added to the ones each `app.yaml` declares. |
 | applicationSet.annotations | object | `{}` | Annotations of the ApplicationSet. |
+| applicationSet.finalizers | list | `[]` | Finalizers of the ApplicationSet. With `resources-finalizer.argocd.argoproj.io`, deleting the ApplicationSet keeps the Applications it generated when its effective `applicationsSync` policy forbids deletion (`create-only` or `create-update`; the ApplicationSet's own policy counts only when the controller allows the policy override): the controller removes their owner references before the ApplicationSet goes. This holds for a background cascading delete, `kubectl delete`'s default, not for a foreground one, the default of an Argo CD prune or cascading Application deletion. Under `sync` or `create-delete`, the Applications are deleted with the ApplicationSet. |
 | applicationSet.goTemplateOptions | list | `["missingkey=error"]` | Go template options of the ApplicationSet. Without `missingkey=error`, a missing field renders empty instead of failing. |
 | applicationSet.labels | object | `{}` | Labels of the ApplicationSet. |
 | applicationSet.name | tpl/string | `nil` | Name of the ApplicationSet, rendered with Helm's `tpl`. Unset → `root-<cluster>`. |
