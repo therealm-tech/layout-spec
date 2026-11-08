@@ -1,0 +1,88 @@
+name: chart
+
+on:
+  push:
+    tags:
+      - chart-*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  REPOSITORY: oci://ghcr.io/therealm-tech/charts
+
+jobs:
+  version:
+    name: check the tag against the committed versions
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: derive the version from the tag
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" != tag ] || [[ "$GITHUB_REF_NAME" != chart-* ]]; then
+            echo "The chart is published from a chart-X.Y.Z tag; this run is on ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}." >&2
+            echo "Start a manual run on a chart-* tag, or cut a release with scripts/release.sh." >&2
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#chart-}"
+          if ! [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc[1-9][0-9]*)?$ ]]; then
+            echo "Tag ${GITHUB_REF_NAME} is not chart-X.Y.Z or chart-X.Y.Z-rcN." >&2
+            exit 1
+          fi
+
+          stale=""
+          committed="$(sed -n 's/^version:[[:space:]]*//p' charts/therealm-layout/Chart.yaml)"
+          [ "$committed" = "$version" ] || stale+="  charts/therealm-layout/Chart.yaml: version ${committed}"$'\n'
+          if [[ "$version" != *-* ]]; then
+            while read -r v; do
+              [ "$v" = "$version" ] || stale+="  example/clusters/mgmt-1/root.yaml: targetRevision ${v}"$'\n'
+            done < <(sed -nE 's/^[[:space:]]+targetRevision:[[:space:]]+([0-9][^[:space:]]*)$/\1/p' example/clusters/mgmt-1/root.yaml)
+            while read -r v; do
+              [ "$v" = "$version" ] || stale+="  README.md: --version ${v}"$'\n'
+            done < <(sed -nE 's#.*oci://ghcr.io/therealm-tech/charts/therealm-layout --version ([^[:space:]]+).*#\1#p' README.md)
+          fi
+          if [ -n "$stale" ]; then
+            echo "The tag says ${version}, but these committed references do not:" >&2
+            printf '%s' "$stale" >&2
+            echo "Cut releases with scripts/release.sh so the two stay in step." >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: publish the chart to GHCR
+    needs:
+      - version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+      - name: package the chart
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: helm package charts/therealm-layout --version "$VERSION" --destination "$RUNNER_TEMP"
+      - name: log in to GHCR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GITHUB_TOKEN" | helm registry login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
+      - name: push the chart
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: helm push "$RUNNER_TEMP/therealm-layout-${VERSION}.tgz" "$REPOSITORY"

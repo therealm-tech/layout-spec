@@ -15,12 +15,12 @@ Tools the hooks and the chart render shell out to:
 | --- | --- | --- |
 | [pre-commit](https://pre-commit.com) | ≥ 4 | every hook |
 | [Go](https://go.dev/doc/install) | ≥ 1.26 | installing `jsonnetfmt` and `helm-docs` below |
-| [Helm](https://helm.sh/docs/intro/install/) | ≥ 3 | `helm-lint`, chart render |
-| [helm-docs](https://github.com/norwoodj/helm-docs) | 1.14.2 | `helm-docs` |
+| [Helm](https://helm.sh/docs/intro/install/) | ≥ 3.8 | `helm-lint`, chart render |
+| [helm-docs](https://github.com/norwoodj/helm-docs) | 1.14.2 | `helm-docs`, `scripts/release.sh` |
 | [go-jsonnet](https://github.com/google/go-jsonnet) `jsonnetfmt` | 0.22.0 | `jsonnetfmt` |
 | [Trivy](https://trivy.dev/latest/getting-started/installation/) | ≥ 0.76 | `trivy-chart` |
 
-`yamllint` and `actionlint` are installed by pre-commit itself.
+`yamllint`, `actionlint` and `shellcheck` are installed by pre-commit itself.
 
 Install pre-commit:
 
@@ -85,6 +85,7 @@ The hooks are defined in [`.pre-commit-config.yaml`](.pre-commit-config.yaml):
 | `check-added-large-files`, `check-merge-conflict`, `detect-private-key` | accidental commits | remove the file or marker |
 | `yamllint` | YAML style, per [`.yamllint.yaml`](.yamllint.yaml) | fix the file |
 | `actionlint` | GitHub Actions workflows | fix the workflow |
+| `shellcheck` | shell scripts, such as [`scripts/release.sh`](scripts/release.sh) | fix the script |
 | `no-co-authors` | no `Co-Authored-By:` or `Generated with` line in a commit message | rewrite the message |
 | `jsonnetfmt` | Jsonnet formatting | fixes itself; re-run |
 | `helm-lint` | `charts/therealm-layout`, with `values-lint.yaml` | fix the chart |
@@ -100,8 +101,12 @@ and say why.
 | Workflow | Triggers on | What it does | Reproduce locally |
 | --- | --- | --- | --- |
 | [`quality.yaml`](.github/workflows/quality.yaml) | push to `main`, every pull request | `pre-commit run --all-files`; renders the chart for each cluster of `example/` | the commands above |
+| [`chart.yaml`](.github/workflows/chart.yaml) | push of a `chart-*` tag; a manual run on such a tag | checks the tag against the committed versions, packages the chart and pushes it to `oci://ghcr.io/therealm-tech/charts` | `helm package charts/therealm-layout`; the push has no local equivalent |
 
-Both jobs are required to merge. The workflow needs no secret.
+Both `quality.yaml` jobs are required to merge. `chart.yaml` never runs on a
+pull request, and a manual run on anything but a `chart-*` tag fails. Neither
+workflow needs a secret: `chart.yaml` pushes with the `GITHUB_TOKEN` GitHub
+provides, granted `packages: write` in its publishing job only.
 [Dependabot](.github/dependabot.yaml) keeps the pinned actions up to date.
 
 ## Submitting a change
@@ -111,3 +116,34 @@ Both jobs are required to merge. The workflow needs no secret.
 - A change to the layout updates [SPEC.md](SPEC.md), the chart and the
   example together.
 - CI is green before the change lands.
+
+## Releasing
+
+The chart is released under `chart-X.Y.Z` tags, `chart-X.Y.Z-rcN` for a
+pre-release. [`scripts/release.sh`](scripts/release.sh) is the only supported
+way to cut one: `chart.yaml` refuses a tag that disagrees with the committed
+versions. Run it from a clean `main`, up to date with `origin`:
+
+```sh
+scripts/release.sh --dry-run 0.2.0
+```
+
+```sh
+scripts/release.sh 0.2.0
+```
+
+It sets `version` in [`Chart.yaml`](charts/therealm-layout/Chart.yaml) and
+regenerates the chart's README with `helm-docs`. A stable release also moves
+the chart's `targetRevision` in
+[`example/clusters/mgmt-1/root.yaml`](example/clusters/mgmt-1/root.yaml) and
+the `--version` of the registry command in [README.md](README.md); a
+pre-release leaves them on the last stable version. It then commits
+`release chart <version>`, tags `chart-<version>` and asks before pushing both,
+defaulting to no. When `Chart.yaml` already holds the version, it commits
+nothing and tags `HEAD`.
+
+Pushing the tag runs `chart.yaml`, which publishes
+`oci://ghcr.io/therealm-tech/charts/therealm-layout:<version>`. A chart release
+has no GitHub release page. GHCR creates a package private: the
+`therealm-layout` package is set to public in its package settings, so that
+Helm and Argo CD pull it without credentials.

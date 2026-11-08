@@ -5,3 +5,5 @@ type: application
 version: 0.1.0
 annotations:
   artifacthub.io/license: MIT
+sources:
+  - https://github.com/therealm-tech/layout-spec
