@@ -41,7 +41,7 @@ applications and validating files are outside its scope.
   directory under `clusters/`.
 - A Git repository following [SPEC.md](SPEC.md). Argo CD needs read access to
   it, and to the repo catalogue when that is a different repository.
-- [Helm](https://helm.sh/docs/intro/install/) ≥ 3, to render the chart
+- [Helm](https://helm.sh/docs/intro/install/) ≥ 3.8, to render the chart
   locally.
 
 ### Installation
@@ -64,6 +64,14 @@ Render the ApplicationSet of one cluster of the example:
 helm template root-prod-eu-1 charts/therealm-layout --namespace argocd -f example/clusters/prod-eu-1/cluster.yaml --set cluster=prod-eu-1
 ```
 
+The chart is published to the GitHub container registry, as the public OCI
+artefact `oci://ghcr.io/therealm-tech/charts/therealm-layout`. Render a
+released version from there:
+
+```sh
+helm template root-prod-eu-1 oci://ghcr.io/therealm-tech/charts/therealm-layout --version 0.1.0 --namespace argocd -f example/clusters/prod-eu-1/cluster.yaml --set cluster=prod-eu-1
+```
+
 In a real repository, each Argo CD instance is bootstrapped by one manifest
 holding a root `Application` per cluster it manages, which renders this chart
 with that cluster's `cluster.yaml`. The example's
@@ -74,8 +82,11 @@ manifest; apply it once:
 kubectl apply -f clusters/mgmt-1/root.yaml
 ```
 
-Its chart registry, `registry.example.com/charts`, is a placeholder for
-wherever the chart is published.
+Its root `Application`s pull the chart from that registry with
+`repoURL: ghcr.io/therealm-tech/charts` and `chart: therealm-layout`. An
+`Application` names an OCI registry without the `oci://` scheme: Argo CD
+recognises a scheme-less `repoURL` as one. The registry is public, so Argo CD
+needs no repository `Secret` for it.
 
 ## Contributing
 
