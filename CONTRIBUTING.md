@@ -107,7 +107,8 @@ Both `quality.yaml` jobs are required to merge. `chart.yaml` never runs on a
 pull request, and a manual run on anything but a `chart-*` tag fails. Neither
 workflow needs a secret: `chart.yaml` pushes with the `GITHUB_TOKEN` GitHub
 provides, granted `packages: write` in its publishing job only.
-[Dependabot](.github/dependabot.yaml) keeps the pinned actions up to date.
+[Dependabot](.github/dependabot.yaml) keeps the pinned actions and the
+pre-commit hook revisions up to date.
 
 ## Submitting a change
 
