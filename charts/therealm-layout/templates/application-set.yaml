@@ -1,10 +1,10 @@
-{{- $cluster := required "cluster is required" .Values.cluster }}
+{{- $cluster := required "cluster is required" .Values.cluster | toString }}
 {{- $catalog := .Values.repo.catalog }}
 {{- $platform := .Values.repo.platform }}
 {{- $catalogURL := required "repo.catalog.url is required" $catalog.url }}
-{{- $catalogRevision := required "repo.catalog.revision is required" $catalog.revision }}
+{{- $catalogRevision := required "repo.catalog.revision is required" $catalog.revision | toString }}
 {{- $platformURL := required "repo.platform.url is required" $platform.url }}
-{{- $platformRevision := required "repo.platform.revision is required" $platform.revision }}
+{{- $platformRevision := required "repo.platform.revision is required" $platform.revision | toString }}
 {{- $catalogPath := include "therealm-layout.prefix" $catalog.path }}
 {{- $platformPath := include "therealm-layout.prefix" $platform.path }}
 {{- $platformDepth := 0 }}
@@ -109,8 +109,8 @@ nested under goTemplate, so every merge child carries the same `values` map.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: {{ tpl (default (printf "root-%s" $cluster) .Values.applicationSet.name) $ }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ tpl (default (printf "root-%s" $cluster) .Values.applicationSet.name) $ | quote }}
+  namespace: {{ quote .Release.Namespace }}
   {{- with .Values.applicationSet.labels }}
   labels:
     {{- toYaml . | nindent 4 }}

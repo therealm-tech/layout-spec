@@ -353,7 +353,9 @@ OPTIONAL at a given level. The constraints below apply to the effective
 configuration (Section 10). `url`, `chart`, `path`, `revision`, `namespace`
 and `project`, when set in the effective configuration, MUST be
 non-empty. Keys of `app` other than those in the table have no meaning in
-the layout and are not read.
+the layout and are not read. A field of type string holds a YAML string: a
+value YAML would read as a number, such as the chart version `1.10`, which
+it reads as the number 1.1, MUST be quoted (`revision: "1.10"`) [YAML].
 
 ### 8.2. Source
 

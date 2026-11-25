@@ -2,20 +2,25 @@
 A key a level sets to null stays in `.app`, holding null: it is unset, so
 the patch tests a key by its value, never with `hasKey`.
 */}}
+{{- /*
+A parameter YAML reads as a number reaches the patch as a float64, which `quote`
+alone prints in exponent form from seven digits on (20241010 → "2.024101e+07").
+*/}}
+{{- define "string" }}{{ if kindIs "float64" . }}{{ toJson . | quote }}{{ else }}{{ quote . }}{{ end }}{{ end }}
 spec:
   {{- with dig "app" "namespace" "" . }}
   destination:
-    namespace: {{ . }}
+    namespace: {{ template "string" . }}
   {{- end }}
   sources:
-    - repoURL: {{ dig "app" "url" "" . | default $catalogURL }}
-      targetRevision: {{ if dig "app" "url" "" . }}{{ .app.revision }}{{ else }}{{ $catalogRevision }}{{ end }}
+    - repoURL: {{ if dig "app" "url" "" . }}{{ template "string" .app.url }}{{ else }}{{ quote $catalogURL }}{{ end }}
+      targetRevision: {{ if dig "app" "url" "" . }}{{ template "string" .app.revision }}{{ else }}{{ quote $catalogRevision }}{{ end }}
       {{- if dig "app" "chart" "" . }}
-      chart: {{ .app.chart }}
+      chart: {{ template "string" .app.chart }}
       {{- else if dig "app" "url" "" . }}
-      path: {{ .app.path }}
+      path: {{ template "string" .app.path }}
       {{- else }}
-      path: {{ $catalogPath }}{{ .app.path }}
+      path: {{ print $catalogPath .app.path | quote }}
       {{- /*
       Any `directory` makes Argo CD skip its source type detection and render
       the source as plain YAML or Jsonnet, which breaks a Kustomize source: the
@@ -25,29 +30,30 @@ spec:
       directory:
         jsonnet:
           libs:
-            - {{ $catalogPath }}lib
+            - {{ print $catalogPath "lib" | quote }}
       {{- end }}
       {{- end }}
       {{- /* A chart is either referenced by `chart`, or lives under apps/<app>/charts/. */}}
       {{- if or (dig "app" "chart" "" .) (regexMatch "^apps/[^/]+/charts/" (dig "app" "path" "" .)) }}
       helm:
-        releaseName: {{ template "releaseName" . }}
+        {{- /* A template's output cannot be piped: a valid release name holds no quote nor backslash. */}}
+        releaseName: "{{ template "releaseName" . }}"
         ignoreMissingValueFiles: {{ $helmIgnoreMissingValueFiles }}
         valueFiles:
-          - $catalog/{{ $catalogPath }}apps/{{ .values.app }}/values.yaml
-          - $platform/{{ $platformPath }}envs/{{ .values.env }}/{{ .values.app }}/values.yaml
-          - $platform/{{ $platformPath }}clusters/{{ .values.cluster }}/apps/{{ .values.app }}/values.yaml
-          - $platform/{{ .instanceFile.path.path }}/values.yaml
-    - repoURL: {{ $catalogURL }}
-      targetRevision: {{ $catalogRevision }}
+          - {{ printf "$catalog/%sapps/%s/values.yaml" $catalogPath .values.app | quote }}
+          - {{ printf "$platform/%senvs/%s/%s/values.yaml" $platformPath .values.env .values.app | quote }}
+          - {{ printf "$platform/%sclusters/%s/apps/%s/values.yaml" $platformPath .values.cluster .values.app | quote }}
+          - {{ printf "$platform/%s/values.yaml" .instanceFile.path.path | quote }}
+    - repoURL: {{ quote $catalogURL }}
+      targetRevision: {{ quote $catalogRevision }}
       ref: catalog
-    - repoURL: {{ $platformURL }}
-      targetRevision: {{ $platformRevision }}
+    - repoURL: {{ quote $platformURL }}
+      targetRevision: {{ quote $platformRevision }}
       ref: platform
       {{- end }}
-    - repoURL: {{ $platformURL }}
-      targetRevision: {{ $platformRevision }}
-      path: {{ .instanceFile.path.path }}
+    - repoURL: {{ quote $platformURL }}
+      targetRevision: {{ quote $platformRevision }}
+      path: {{ quote .instanceFile.path.path }}
       directory:
         recurse: {{ $manifestsRecurse }}
         include: {{ $manifestsInclude | quote }}
