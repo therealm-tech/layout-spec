@@ -67,19 +67,19 @@ shown here.
 
 ## 3. Terminology
 
-- **Repo catalogue**: The role of providing `apps/`, held by a repository at
-  a layout root. Each cluster names the repository and layout root that hold
-  it (Section 9).
+- **Repo catalogue**: The role of providing `apps/` and `lib/`, held by a
+  repository at a layout root. Each cluster names the repository and layout
+  root that hold it (Section 9).
 
 - **Repo platform**: The role of providing `envs/` and `clusters/`, held by
   a repository at a layout root. Each cluster names the repository and
   layout root that hold it (Section 9).
 
 - **Layout root**: The directory of a repository under which a role's part
-  of the layout starts. Paths under `apps/` are relative to the repo
-  catalogue's layout root; paths under `envs/` and `clusters/` are relative
-  to the repo platform's. `path` set together with `url` is relative to the
-  root of that repository (Section 8.2); `repo.catalog.path` and
+  of the layout starts. Paths under `apps/` and `lib/` are relative to the
+  repo catalogue's layout root; paths under `envs/` and `clusters/` are
+  relative to the repo platform's. `path` set together with `url` is
+  relative to the root of that repository (Section 8.2); `repo.catalog.path` and
   `repo.platform.path` are relative to the root of their repository
   (Section 9).
 
@@ -114,7 +114,8 @@ shown here.
 
 - **Source**: What an app deploys: a Helm chart, or a Kustomize, Jsonnet or
   plain-manifests directory, designated by `chart` or `path` (Section 8.2),
-  together with the files those tools read from it.
+  together with the files those tools read from it and, for a source
+  `apps/<app>/jsonnet`, the libraries of `lib/` it imports (Section 6.7).
 
 - **Effective configuration**: The `app` mapping that results from combining
   the `app.yaml` files of an instance's levels (Section 10.2).
@@ -191,7 +192,7 @@ apps/
       <chart>/        OPTIONAL  Helm chart
     jsonnet/          OPTIONAL  Jsonnet importing the shared libraries
     manifests/        OPTIONAL  plain manifests, Kustomize or Jsonnet
-lib/                  OPTIONAL  Jsonnet libraries shared by every app
+lib/                  OPTIONAL  Jsonnet libraries of the apps/<app>/jsonnet sources (Section 6.7)
 ```
 
 ### 6.1. Membership
@@ -240,7 +241,8 @@ meaning only as the target of `path`; when the app's source is elsewhere,
 
 ### 6.7. `lib/`
 
-Jsonnet [JSONNET] libraries shared by the apps of the catalogue. `lib/` is
+Jsonnet [JSONNET] libraries shared by the `apps/<app>/jsonnet` sources of the
+catalogue. `lib/` is
 the library search path of every source `apps/<app>/jsonnet`, and of no
 other source. An import in such a source resolves, in order, relative to
 the directory of the importing file, relative to `lib/`, then relative to
@@ -526,7 +528,9 @@ effective configuration is made of the more specific levels only.
 
 A more specific level can replace or remove any value that a less
 specific level sets. An app whose catalogue `app.yaml` sets `chart` becomes a
-`path` app at a level that sets `chart` to null and sets `path`.
+`path` app at a level that sets `chart` to null and sets `path`, and that
+sets `url` and `revision` to values valid for a `path` or to null (Section
+8.2).
 
 In particular, labels and annotations under `managedNamespaceMetadata`
 accumulate across levels, and one set to null at a level is removed, while
@@ -570,9 +574,11 @@ The split protects confidentiality, not integrity. Through `app.yaml`
 it holds under `apps/<app>/`, and the remote bases of its Kustomize sources,
 the repo catalogue decides what is deployed, into which namespace, under
 which Argo CD project, with which namespace labels, and which drift Argo CD
-does not report, on every cluster that has an instance of the app. Write access to the repo catalogue at a revision a
-cluster reads (`repo.catalog.revision`) is equivalent to write access to
-every cluster that has an instance of the app. A source, remote base or
+does not report, on every cluster that has an instance of the app, except
+where the repo platform overrides or removes it with null (Section 10.2).
+Write access to the repo catalogue at a revision a cluster reads (`repo.catalog.revision`)
+gives control of everything the repo platform does not override, on every
+cluster that has an instance of the app. A source, remote base or
 chart dependency outside both repositories extends the same trust to that
 repository.
 
