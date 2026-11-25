@@ -12,14 +12,16 @@ live, what each file means, and how files at different levels combine into
 the description of one deployed instance. It defines two roles, the repo
 catalogue and the repo platform, which one repository may hold together.
 Everything that operates on the layout (installing Argo CD, synchronising
-applications, validating files) is outside its scope.
+applications, validating files) is outside its scope, except for the names
+a deploying system chooses (Section 8.4).
 
 ## Status of This Memo
 
 This document is the specification of this project. It is normative for
-any repository that claims to follow the therealm layout. It is not an IETF
-document and makes no claim to be one. Distribution of this memo is
-unlimited.
+any repository that claims to follow the therealm layout and, on the
+points that bear on it (Section 8.4), for any system that deploys such a
+repository. It is not an IETF document and makes no claim to be one.
+Distribution of this memo is unlimited.
 
 ## Table of Contents
 
@@ -123,6 +125,12 @@ shown here.
 - **Effective revision**: The revision the app's source is read at:
   `revision` of the effective configuration when `url` is set,
   `repo.catalog.revision` when it is not (Section 8.2).
+
+- **Held by the repo catalogue**: Said of a source whose effective
+  configuration sets `path` and does not set `url`: it lives under
+  `apps/<app>/` and is read at `repo.catalog.revision` (Section 8.2). A
+  source whose `url` names the repository of the repo catalogue is not held
+  by it.
 
 ## 4. Repositories and Revisions
 
@@ -320,7 +328,9 @@ under it. Files with other extensions are not read. Unlike the
 plain-manifests rule of Section 8.3, which takes only the files directly in
 the directory, this rule includes subdirectories. `manifests/` MUST NOT
 contain, at any depth, a kustomization file (Section 8.3), and a manifest
-under it MUST NOT declare a resource that the app's source also renders.
+under it MUST NOT declare a resource that the app's source also renders,
+with the Helm release name the deploying system chooses (Section 8.4) when
+the source is a Helm chart.
 
 ### 7.4. Clusters
 
@@ -371,8 +381,8 @@ Git URL form that Argo CD accepts [ARGOCD].
 When `chart` is set, `url` and `revision` MUST be set, `url` MUST be a Helm
 chart repository or an OCI registry, and `revision` is the chart version.
 
-When `path` is set and `url` is not, the source lives in the repo catalogue
-and `path` is relative to its layout root. `path` MUST then be
+When `path` is set and `url` is not, the source is held by the repo
+catalogue and `path` is relative to its layout root. `path` MUST then be
 `apps/<app>/charts/<chart>`, `apps/<app>/jsonnet` or `apps/<app>/manifests`,
 where `<app>` is the instance's own app. `revision` MUST NOT be set when
 `url` is not set; the source is then read at `repo.catalog.revision`
@@ -563,10 +573,10 @@ Application, and the Helm release name of a Helm source (Section 8.4).
 ## 11. Security Considerations
 
 The repo catalogue provides only what is common to every deployment of an
-app, and it may be public. Files under `apps/` MUST NOT contain secrets, and
-SHOULD NOT contain facts specific to an env or a cluster, such as hostnames,
-network ranges or capacity. Those belong to the repo platform, whose
-confidentiality is what the split exists for.
+app, and it may be public. Files under `apps/` and `lib/` MUST NOT contain
+secrets, and SHOULD NOT contain facts specific to an env or a cluster, such
+as hostnames, network ranges or capacity. Those belong to the repo
+platform, whose confidentiality is what the split exists for.
 
 The split protects confidentiality, not integrity. Through `app.yaml`
 (`url`, `chart`, `path`, `revision`, `project`, `namespace`, `syncOptions`,
@@ -576,17 +586,21 @@ the repo catalogue decides what is deployed, into which namespace, under
 which Argo CD project, with which namespace labels, and which drift Argo CD
 does not report, on every cluster that has an instance of the app, except
 where the repo platform overrides or removes it with null (Section 10.2).
-Write access to the repo catalogue at a revision a cluster reads (`repo.catalog.revision`)
-gives control of everything the repo platform does not override, on every
-cluster that has an instance of the app. A source, remote base or
-chart dependency outside both repositories extends the same trust to that
-repository.
+Write access to the repo catalogue at a revision a cluster reads
+(`repo.catalog.revision`) gives control of everything the repo platform does
+not override, on every cluster that has an instance of the app. A source,
+remote base or chart dependency outside both repositories, or read from
+either of them at a revision other than the one the cluster reads (`url`
+and `revision`, Section 8.2; the `?ref=` of a Kustomize remote base),
+extends the same trust to that repository or revision.
 
-A library of `lib/` is part of the source of every app whose
-`apps/<app>/jsonnet/` imports it, directly or through another library. One
-change to it reaches all of those apps at once, on every cluster that reads
-the repo catalogue at that revision: write access to `lib/` is equivalent to
-write access to every cluster that has an instance of any of them.
+A library of `lib/` is part of the source of every instance whose
+effective source is `apps/<app>/jsonnet`, held by the repo catalogue, for
+an app whose `apps/<app>/jsonnet/` imports it, directly or through another
+library. One change to it reaches all of those instances at once, on every
+cluster that reads the repo catalogue at that revision: write access to
+`lib/` gives control of what those instances deploy, except where the repo
+platform overrides it.
 
 The repo platform chooses which repo catalogue a cluster reads, and at
 which revision, through `repo.catalog` in `cluster.yaml`. Its `app.yaml`
