@@ -1,0 +1,93 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Paris",
+  "dependencyDashboard": {
+    "enabled": true,
+    "title": "Dependency dashboard"
+  },
+  "prConcurrentLimit": 5,
+  "minimumReleaseAge": "3 days",
+  "semanticCommits": "disabled",
+  "lockFileMaintenance": {
+    "description": "Weekly refresh of mise.lock, any time on Monday: the daily workflow run does not reliably start before 4am, Renovate's default window",
+    "enabled": true,
+    "commitMessageAction": "refresh lock files",
+    "schedule": [
+      "* * * * 1"
+    ]
+  },
+  "pre-commit": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "description": "OCI chart pinned in an app.yaml: `url: ghcr.io/argoproj/argo-helm`, then `chart: argo-cd`, then `revision: 10.11.6`, on consecutive lines",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)app\\.yaml$/"
+      ],
+      "matchStrings": [
+        "url: (?<registry>[^\\s:]+)\\n\\s+chart: (?<chart>\\S+)\\n\\s+revision: (?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "{{{registry}}}/{{{chart}}}",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Commit subjects follow the repository's style: `bump <dependency> to <version>`",
+      "matchPackageNames": [
+        "*"
+      ],
+      "commitMessageAction": "bump",
+      "commitMessageTopic": "{{depName}}"
+    },
+    {
+      "description": "Minor and patch bumps of the actions land as one PR; each major gets its own",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "GitHub Actions (minor and patch)"
+    },
+    {
+      "description": "Minor and patch bumps of the pre-commit hooks land as one PR; each major gets its own",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "pre-commit hooks (minor and patch)"
+    },
+    {
+      "description": "Minor and patch bumps of the tools in mise.toml land as one PR; each major gets its own",
+      "matchManagers": [
+        "mise"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "mise tools (minor and patch)"
+    },
+    {
+      "description": "The chart's own version (Chart.yaml, the targetRevision in example/clusters/mgmt-1/root.yaml, the --version in README.md) moves only with scripts/release.sh",
+      "matchPackageNames": [
+        "therealm-layout",
+        "**/therealm-layout"
+      ],
+      "enabled": false
+    }
+  ]
+}
