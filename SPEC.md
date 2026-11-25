@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Category | Internal specification |
+| Category | Project specification |
 | Scope | Repository layout for Argo CD deployments |
 
 ## Abstract
@@ -16,10 +16,10 @@ applications, validating files) is outside its scope.
 
 ## Status of This Memo
 
-This document is the internal specification of this project. It is
-normative for any repository that claims to follow the therealm layout. It
-is not an IETF document and makes no claim to be one. Distribution of this
-memo is unlimited.
+This document is the specification of this project. It is normative for
+any repository that claims to follow the therealm layout. It is not an IETF
+document and makes no claim to be one. Distribution of this memo is
+unlimited.
 
 ## Table of Contents
 
