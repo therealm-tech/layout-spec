@@ -71,6 +71,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^charts/therealm-layout/
+      - id: helm-lint-whoami
+        name: helm lint (example whoami)
+        entry: helm lint --strict example/apps/whoami/charts/whoami
+        language: system
+        pass_filenames: false
+        files: ^example/apps/whoami/charts/whoami/
       - id: helm-docs
         name: helm-docs
         entry: helm-docs --chart-search-root charts

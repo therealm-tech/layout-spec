@@ -77,6 +77,7 @@ Those whose failure needs explaining:
 | `no-co-authors` | no `Co-Authored-By:` or `Generated with` line in a commit message; `--all-files` skips it | rewrite the message |
 | `jsonnet-format`, `mise-fmt` | Jsonnet and `mise.toml` formatting | fixes itself; re-run |
 | `helm-lint` | `charts/therealm-layout`, with `values-lint.yaml` | fix the chart |
+| `helm-lint-whoami` | the example's `whoami` chart | fix the chart |
 | `helm-docs` | the chart's `README.md` matches its `values.yaml` | fixes itself; commit the regenerated README |
 | `trivy-chart` | Kubernetes misconfigurations in the rendered chart | fix the chart |
 
