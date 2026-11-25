@@ -38,6 +38,17 @@ repos:
     hooks:
       - id: shellcheck
 
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: a76b92851fc9eede9f9bc4073eb55202f34eb0df  # frozen: 0.39.0
+    hooks:
+      - id: check-taskfile
+
+  - repo: https://github.com/google/go-jsonnet
+    rev: 567b61ac4a6c23546a62d79324bb4aaed6bdc941  # frozen: v0.22.0
+    hooks:
+      - id: jsonnet-format
+      - id: jsonnet-lint
+
   - repo: local
     hooks:
       - id: no-co-authors
@@ -48,11 +59,12 @@ repos:
           - --ignore-case
         stages:
           - commit-msg
-      - id: jsonnetfmt
-        name: jsonnetfmt
-        entry: jsonnetfmt --in-place
+      - id: mise-fmt
+        name: mise fmt
+        entry: mise fmt
         language: system
-        files: \.(jsonnet|libsonnet)$
+        files: ^mise\.toml$
+        pass_filenames: false
       - id: helm-lint
         name: helm lint (therealm-layout)
         entry: helm lint --strict charts/therealm-layout -f charts/therealm-layout/values-lint.yaml
