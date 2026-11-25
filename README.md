@@ -32,6 +32,8 @@ checks one against this specification.
 The specification covers the layout only: installing Argo CD, synchronising
 applications and validating files are outside its scope.
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the chart implements it, and why.
+
 ## Getting started
 
 ### Prerequisites
