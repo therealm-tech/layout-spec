@@ -62,7 +62,7 @@ application:
   finalizers: []
   # -- Number of sync results each Application keeps in its history.
   revisionHistoryLimit: 0
-  # -- Set `argocd.argoproj.io/manifest-generate-paths` to the layout directories of each instance, so a commit elsewhere does not regenerate its manifests. Needs a git webhook.
+  # -- Set `argocd.argoproj.io/manifest-generate-paths` to the layout directories of each instance, and to `lib/` for a source `apps/<app>/jsonnet`, so a commit elsewhere does not regenerate its manifests. Needs a git webhook.
   manifestGeneratePaths: true
   # -- (string) Project of an Application whose `app.yaml` sets none. Unset → every app must set `app.project`.
   defaultProject: ~

@@ -56,6 +56,9 @@ repos:
     hooks:
       - id: jsonnet-format
       - id: jsonnet-lint
+        args:
+          - -J
+          - example/lib
 
   - repo: local
     hooks:

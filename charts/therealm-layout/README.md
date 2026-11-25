@@ -18,7 +18,7 @@ It implements the layout specified in [`SPEC.md`](https://github.com/therealm-te
 | application.helm.ignoreMissingValueFiles | bool | `true` | Skip the layout's `values.yaml` files that do not exist. Disabled, every level must provide one. |
 | application.helm.releaseName | string | `nil` | Helm release name of a chart app, as an ApplicationSet Go template with the same parameters as `application.name`. Unset → `<app>`, shortened to `names.maxLength`. Set → used as is: keeping it short enough is then up to you. |
 | application.labels | object | `{}` | Labels of each Application. Values are ApplicationSet Go templates, with the same parameters as `application.name`. |
-| application.manifestGeneratePaths | bool | `true` | Set `argocd.argoproj.io/manifest-generate-paths` to the layout directories of each instance, so a commit elsewhere does not regenerate its manifests. Needs a git webhook. |
+| application.manifestGeneratePaths | bool | `true` | Set `argocd.argoproj.io/manifest-generate-paths` to the layout directories of each instance, and to `lib/` for a source `apps/<app>/jsonnet`, so a commit elsewhere does not regenerate its manifests. Needs a git webhook. |
 | application.manifests | object | see the keys below | Raw manifests applied from each instance directory. |
 | application.manifests.include | string | `"manifests/*.yaml"` | Glob of the raw manifests applied from an instance directory, relative to it. |
 | application.manifests.recurse | bool | `true` | Search sub-directories of the instance directory; needed for an `include` below a sub-directory. |

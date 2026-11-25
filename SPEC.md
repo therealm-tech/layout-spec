@@ -138,6 +138,7 @@ The repo catalogue provides, under its layout root:
 
 ```text
 apps/
+lib/
 ```
 
 The repo platform provides, under its layout root:
@@ -157,8 +158,9 @@ that cluster:
   source held by the repo catalogue is therefore always read at
   `repo.catalog.revision`, the same revision as the catalogue level files.
   Everything that belongs to the source, such as a chart's own `values.yaml`, or
-  `apps/<app>/manifests/` and `apps/<app>/lib/` when they are part of the
-  source (Sections 6.5, 6.6), is read with it;
+  `apps/<app>/manifests/` or `apps/<app>/jsonnet/` when it is the source
+  (Sections 6.5, 6.6), is read with it, and so are the shared libraries of
+  `lib/` that a source `apps/<app>/jsonnet` imports (Section 6.7);
 - every file under `envs/` and `clusters/`, except
   `clusters/<cluster>/cluster.yaml` and `clusters/<cluster>/root.yaml`, is
   read from the repo platform at `repo.platform.revision`.
@@ -186,8 +188,9 @@ apps/
     values.yaml       OPTIONAL
     charts/
       <chart>/        OPTIONAL  Helm chart
-    lib/              OPTIONAL  Jsonnet libraries
+    jsonnet/          OPTIONAL  Jsonnet importing the shared libraries
     manifests/        OPTIONAL  plain manifests, Kustomize or Jsonnet
+lib/                  OPTIONAL  Jsonnet libraries shared by every app
 ```
 
 ### 6.1. Membership
@@ -220,16 +223,33 @@ The source of a non-Helm app held by the repo catalogue, designated by
 setting `path` to `apps/<app>/manifests` with no `url`. `manifests/` has a
 meaning only as the target of `path`; when the app's source is elsewhere,
 `apps/<app>/manifests/` is not read. Its type is decided by the rules of
-Section 8.3.
+Section 8.3. A Jsonnet source in `manifests/` does not have `lib/` on its
+library search path (Section 6.7); a Jsonnet source that imports shared
+libraries lives in `apps/<app>/jsonnet/` instead.
 
-### 6.6. `apps/<app>/lib/`
+### 6.6. `apps/<app>/jsonnet/`
 
-Jsonnet libraries of the app. A Jsonnet file of `manifests/` imports them
-by a path relative to itself (`../lib/<file>.libsonnet`); the layout defines
-no library search path. They are read together with the source, at its
-revision. `lib/` has a meaning only when the source is the Jsonnet
-directory `apps/<app>/manifests` (no `url`); otherwise the layout gives it
-no meaning.
+The source of a Jsonnet app held by the repo catalogue whose files import
+the shared libraries of `lib/`, designated by setting `path` to
+`apps/<app>/jsonnet` with no `url`. The source is Jsonnet by its path
+(Section 8.3): `jsonnet/` MUST contain at least one `*.jsonnet` file
+directly in it, and MUST NOT contain a kustomization file. `jsonnet/` has a
+meaning only as the target of `path`; when the app's source is elsewhere,
+`apps/<app>/jsonnet/` is not read.
+
+### 6.7. `lib/`
+
+Jsonnet [JSONNET] libraries shared by the apps of the catalogue. `lib/` is
+the library search path of every source `apps/<app>/jsonnet`, and of no
+other source. An import in such a source resolves, in order, relative to
+the directory of the importing file, relative to `lib/`, then relative to
+`apps/<app>/jsonnet/`: a library `lib/<file>.libsonnet` is imported as
+`import '<file>.libsonnet'`, from any depth. Libraries MAY import one
+another the same way.
+
+`lib/` is read at `repo.catalog.revision`, the revision of the sources
+that import it (Section 4). A file of `lib/` has an effect only through the
+sources that import it; nothing in `lib/` is deployed by itself.
 
 ## 7. The Repo Platform
 
@@ -345,12 +365,14 @@ When `chart` is set, `url` and `revision` MUST be set, `url` MUST be a Helm
 chart repository or an OCI registry, and `revision` is the chart version.
 
 When `path` is set and `url` is not, the source lives in the repo catalogue
-and `path` is relative to its layout root. `path` MUST then be either
-`apps/<app>/charts/<chart>` or `apps/<app>/manifests`, where `<app>` is the
-instance's own app. `revision` MUST NOT be set when `url` is not set; the
-source is then read at `repo.catalog.revision` (Section 9), and the
-catalogue is pinned only through that field. A source held by the repo
-catalogue MUST NOT read files of the repo catalogue outside `apps/<app>/`.
+and `path` is relative to its layout root. `path` MUST then be
+`apps/<app>/charts/<chart>`, `apps/<app>/jsonnet` or `apps/<app>/manifests`,
+where `<app>` is the instance's own app. `revision` MUST NOT be set when
+`url` is not set; the source is then read at `repo.catalog.revision`
+(Section 9), and the catalogue is pinned only through that field. A source
+held by the repo catalogue MUST NOT read files of the repo catalogue
+outside `apps/<app>/`, except that a source `apps/<app>/jsonnet` reads the
+libraries of `lib/` it imports (Section 6.7).
 
 When `path` and `url` are set, `url` MUST be a Git repository, `path` is
 relative to its root, and `revision` MUST be set.
@@ -365,6 +387,10 @@ The source is a Helm chart if and only if `chart` is set, or `url` is not
 set and `path` is `apps/<app>/charts/<chart>`. A directory designated by
 `path` MUST NOT contain a `Chart.yaml` unless `url` is not set and `path` is
 `apps/<app>/charts/<chart>`.
+
+The source is Jsonnet, whatever its content, if `url` is not set and `path`
+is `apps/<app>/jsonnet`. It is evaluated as rule 2 below describes, with the
+library search path of Section 6.7.
 
 Any other source is Kustomize, Jsonnet or plain manifests, decided by the
 content of the directory designated by `path`, as it is at the source's
@@ -445,7 +471,7 @@ and at which revisions they are read:
 | Field | Type | Meaning |
 |---|---|---|
 | `repo.catalog.url` | string | URL of the Git repository holding the repo catalogue, in the Git form of Section 8.2. REQUIRED. |
-| `repo.catalog.revision` | string | Revision at which `apps/<app>/app.yaml`, `apps/<app>/values.yaml` and every source held by the repo catalogue are read. REQUIRED. |
+| `repo.catalog.revision` | string | Revision at which `apps/<app>/app.yaml`, `apps/<app>/values.yaml`, every source held by the repo catalogue and `lib/` are read. REQUIRED. |
 | `repo.catalog.path` | string | Layout root of the repo catalogue. OPTIONAL; not set or empty means the repository root. |
 | `repo.platform.url` | string | URL of the Git repository holding the repo platform, in the Git form of Section 8.2. REQUIRED. |
 | `repo.platform.revision` | string | Revision at which the files of the repo platform are read. REQUIRED. |
@@ -539,6 +565,12 @@ every cluster that has an instance of the app. A source, remote base or
 chart dependency outside both repositories extends the same trust to that
 repository.
 
+A library of `lib/` is part of the source of every app whose
+`apps/<app>/jsonnet/` imports it, directly or through another library. One
+change to it reaches all of those apps at once, on every cluster that reads
+the repo catalogue at that revision: write access to `lib/` is equivalent to
+write access to every cluster that has an instance of any of them.
+
 The repo platform chooses which repo catalogue a cluster reads, and at
 which revision, through `repo.catalog` in `cluster.yaml`. Its `app.yaml`
 levels can replace any catalogue value, `chart`, `path`, `url` and
@@ -592,12 +624,13 @@ This appendix is informative.
 
 [`example/`](example/) is a repository following this layout, with the repo
 catalogue and the repo platform held by the same repository. Its catalogue
-holds four apps:
+holds five apps:
 
 - a Helm chart from an OCI registry (`argocd`);
 - a Helm chart held by the repo catalogue (`whoami`);
 - a Kustomize source (`katib`);
-- a Jsonnet source with a library (`team-quotas`).
+- two Jsonnet sources sharing a library of `lib/` (`team-quotas` and
+  `team-network-policies`).
 
 It has three envs and three clusters, one of which holds two envs and one
 of which pins the repo catalogue to a tag. On that cluster, the instance of

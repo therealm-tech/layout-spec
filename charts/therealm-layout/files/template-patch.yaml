@@ -12,6 +12,17 @@ spec:
       path: {{ .app.path }}
       {{- else }}
       path: {{ $catalogPath }}{{ .app.path }}
+      {{- /*
+      Any `directory` makes Argo CD skip its source type detection and render
+      the source as plain YAML or Jsonnet, which breaks a Kustomize source: the
+      library path is set only where the path itself says Jsonnet.
+      */}}
+      {{- if regexMatch "^apps/[^/]+/jsonnet$" .app.path }}
+      directory:
+        jsonnet:
+          libs:
+            - {{ $catalogPath }}lib
+      {{- end }}
       {{- end }}
       {{- /* A chart is either referenced by `chart`, or lives under apps/<app>/charts/. */}}
       {{- if or (hasKey .app "chart") (regexMatch "^apps/[^/]+/charts/" (dig "app" "path" "" .)) }}

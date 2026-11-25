@@ -15,7 +15,7 @@ catalogue and the repo platform with git generators and generates one
 ```mermaid
 flowchart LR
   registry[("ghcr.io/therealm-tech/charts<br/>therealm-layout")]
-  catalog[("repo catalogue<br/>apps/")]
+  catalog[("repo catalogue<br/>apps/, lib/")]
   platform[("repo platform<br/>envs/, clusters/")]
   target["cluster, named by its Argo CD cluster Secret"]
   subgraph argocd["Argo CD"]
@@ -29,7 +29,7 @@ flowchart LR
   appset -->|"git files generators: app.yaml"| catalog
   appset -->|"git files generators: app.yaml"| platform
   appset -->|"generates"| app
-  app -->|"source, values.yaml"| catalog
+  app -->|"source, lib/, values.yaml"| catalog
   app -->|"values.yaml, manifests/"| platform
   app -->|"deploys to"| target
 ```
@@ -98,7 +98,10 @@ flowchart TB
   `url` and `revision`, or the catalogue's URL and revision with the
   catalogue's layout root prepended to `path` when `url` is not set. A Helm
   source gets the four levels' `values.yaml` as value files, through `ref`
-  sources named `catalog` and `platform`.
+  sources named `catalog` and `platform`. A source `apps/<app>/jsonnet` gets
+  the catalogue's `lib/` as its Jsonnet library path, and `lib/` among the
+  `argocd.argoproj.io/manifest-generate-paths` of its `Application`, so a
+  commit to a shared library refreshes the apps that can import it.
 - **Instance manifests.** A last source points at the instance directory of
   the repo platform, filtered to its `manifests/` by `application.manifests`.
 
@@ -125,6 +128,15 @@ flowchart TB
   `manifests/`. Each file is read from the repository and at the revision
   SPEC.md Section 4 assigns to it, without copying anything between
   repositories.
+- **Jsonnet recognised by its path.** Argo CD only takes a Jsonnet library
+  path through the source's `directory` field, and any `directory` turns off
+  its detection of the source type: a Kustomize source given one is rendered
+  as plain YAML. The chart sees `app.yaml`, not the content of the source
+  directory, so it cannot tell a Jsonnet `manifests/` from a Kustomize one.
+  SPEC.md reserves `apps/<app>/jsonnet` for Jsonnet, as it reserves
+  `apps/<app>/charts/<chart>` for Helm, and the chart sets the library path
+  on that path only. A Jsonnet source in `manifests/` keeps Argo CD's
+  detection and has no shared libraries.
 - **A published chart.** The chart is released as a public OCI artefact, so a
   repository following the layout depends on a pinned chart version rather
   than on a copy of the chart, and Argo CD pulls it without credentials.
@@ -147,3 +159,7 @@ flowchart TB
   checked.
 - An instance whose app is missing from the catalogue generates no
   `Application` and reports no error.
+- Shared Jsonnet libraries reach only sources held by the repo catalogue.
+  Argo CD resolves a Jsonnet library path in the repository of the source,
+  so a source whose `url` names another repository cannot read the
+  catalogue's `lib/`.
