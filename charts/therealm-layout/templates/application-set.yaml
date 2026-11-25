@@ -74,7 +74,7 @@ nested under goTemplate, so every merge child carries the same `values` map.
 {{- end }}
 {{- $annotations := deepCopy (default (dict) $application.annotations) }}
 {{- if $application.manifestGeneratePaths }}
-{{- $_ := set $annotations "argocd.argoproj.io/manifest-generate-paths" (printf "/%sapps/{{ .values.app }};/%senvs/{{ .values.env }}/{{ .values.app }};/%sclusters/{{ .values.cluster }}/apps/{{ .values.app }};/{{ .instanceFile.path.path }}" $catalogPath $platformPath $platformPath) }}
+{{- $_ := set $annotations "argocd.argoproj.io/manifest-generate-paths" (printf "/%sapps/{{ .values.app }};/%senvs/{{ .values.env }}/{{ .values.app }};/%sclusters/{{ .values.cluster }}/apps/{{ .values.app }};/{{ .instanceFile.path.path }}{{ if and (not (hasKey .app \"url\")) (regexMatch \"^apps/[^/]+/jsonnet$\" (dig \"app\" \"path\" \"\" .)) }};/%slib{{ end }}" $catalogPath $platformPath $platformPath $catalogPath) }}
 {{- end }}
 {{- with $annotations }}
 {{- $_ := set $metadata "annotations" . }}
