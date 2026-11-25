@@ -91,13 +91,16 @@ failure somewhere slower.
 | Workflow | Purpose | Reproduce locally |
 | --- | --- | --- |
 | [`quality.yaml`](.github/workflows/quality.yaml) | quality gate: the `lint` and `test` jobs | `task lint`, `task test` |
-| [`chart.yaml`](.github/workflows/chart.yaml) | checks a `chart-*` tag against the committed versions, then publishes the chart to `oci://ghcr.io/therealm-tech/charts` | `helm package charts/therealm-layout`; the push has no local equivalent |
+| [`chart.yaml`](.github/workflows/chart.yaml) | checks a `chart-*` tag against the committed versions, then publishes the chart to `oci://ghcr.io/therealm-tech/charts` with a provenance attestation | `helm package charts/therealm-layout`; the push and the attestation have no local equivalent |
+| [`scorecard.yaml`](.github/workflows/scorecard.yaml) | grades the repository's supply-chain practices with [OpenSSF Scorecard](https://scorecard.dev), for the README badge and code scanning | — |
 
 Both jobs of `quality.yaml`, `lint` and `test`, are required to merge. CI
-installs its tools with mise from the same `mise.lock`. `chart.yaml` never runs
-on a pull request, and a manual run on anything but a `chart-*` tag fails.
-Neither workflow needs a secret: `chart.yaml` pushes with the `GITHUB_TOKEN`
-GitHub provides, granted `packages: write` in its publishing job only.
+installs its tools with mise from the same `mise.lock`. `chart.yaml` and
+`scorecard.yaml` never run on a pull request, and a manual run of `chart.yaml`
+on anything but a `chart-*` tag fails. No workflow needs a secret: they use the
+`GITHUB_TOKEN` GitHub provides. `chart.yaml` grants it `packages: write`, and
+the OIDC token Sigstore certifies (`id-token: write`), in its publishing job
+only; `scorecard.yaml` takes an OIDC token to sign the results it publishes.
 [Dependabot](.github/dependabot.yaml) keeps the pinned actions and the
 pre-commit hook revisions up to date.
 
@@ -114,14 +117,15 @@ pre-commit hook revisions up to date.
 The chart is released under `chart-X.Y.Z` tags, `chart-X.Y.Z-rcN` for a
 pre-release. [`scripts/release.sh`](scripts/release.sh) is the only supported
 way to cut one: `chart.yaml` refuses a tag that disagrees with the committed
-versions. Run it from a clean `main`, up to date with `origin`:
+versions. Run it through `task release` from a clean `main`, up to date with
+`origin`:
 
 ```bash
-scripts/release.sh --dry-run 0.2.0
+task release -- --dry-run 0.2.0
 ```
 
 ```bash
-scripts/release.sh 0.2.0
+task release -- 0.2.0
 ```
 
 It sets `version` in [`Chart.yaml`](charts/therealm-layout/Chart.yaml) and
@@ -135,7 +139,9 @@ defaulting to no. When `Chart.yaml` already holds the version, it commits
 nothing and tags `HEAD`.
 
 Pushing the tag runs `chart.yaml`, which publishes
-`oci://ghcr.io/therealm-tech/charts/therealm-layout:<version>`. A chart release
-has no GitHub release page. GHCR creates a package private: the
+`oci://ghcr.io/therealm-tech/charts/therealm-layout:<version>`, then attests
+its build provenance with [`actions/attest`](https://github.com/actions/attest)
+and pushes the attestation to GHCR beside the chart. A chart release has no
+GitHub release page. GHCR creates a package private: the
 `therealm-layout` package is set to public in its package settings, so that
 Helm and Argo CD pull it without credentials.
