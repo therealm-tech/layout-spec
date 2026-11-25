@@ -14,8 +14,6 @@
 {{- $application := .Values.application }}
 
 {{- /*
-No clusters generator: the release targets one cluster by name, so an
-unregistered cluster shows up as failing Applications instead of none.
 In a matrix the first child wins on a shared key: the instance's app.yaml
 overrides the merge. In a merge later children win. Merge keys cannot be
 nested under goTemplate, so every merge child carries the same `values` map.
