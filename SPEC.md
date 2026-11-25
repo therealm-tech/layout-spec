@@ -12,16 +12,16 @@ live, what each file means, and how files at different levels combine into
 the description of one deployed instance. It defines two roles, the repo
 catalogue and the repo platform, which one repository may hold together.
 Everything that operates on the layout (installing Argo CD, synchronising
-applications, validating files) is outside its scope, except for the names
-a deploying system chooses (Section 8.4).
+applications, validating files) is outside its scope, except for what a
+deploying system deploys and how it names it (Sections 8.4, 10.4).
 
 ## Status of This Memo
 
 This document is the specification of this project. It is normative for
-any repository that claims to follow the therealm layout and, on the
-points that bear on it (Section 8.4), for any system that deploys such a
-repository. It is not an IETF document and makes no claim to be one.
-Distribution of this memo is unlimited.
+any repository that claims to follow the therealm layout and, for any
+system that deploys such a repository, on what it deploys and how it names
+it (Sections 8.4, 10.4). It is not an IETF document and makes no claim to
+be one. Distribution of this memo is unlimited.
 
 ## Table of Contents
 
@@ -127,8 +127,8 @@ shown here.
   `repo.catalog.revision` when it is not (Section 8.2).
 
 - **Held by the repo catalogue**: Said of a source whose effective
-  configuration sets `path` and does not set `url`: it lives under
-  `apps/<app>/` and is read at `repo.catalog.revision` (Section 8.2). A
+  configuration sets `path` and does not set `url`: its `path` is under
+  `apps/<app>/` and it is read at `repo.catalog.revision` (Section 8.2). A
   source whose `url` names the repository of the repo catalogue is not held
   by it.
 
@@ -223,9 +223,9 @@ app's source is a Helm chart (Section 8.3).
 
 ### 6.4. `apps/<app>/charts/<chart>/`
 
-A Helm chart held by the repo catalogue. An app uses it by setting `path` to
-`apps/<app>/charts/<chart>` with no `url`. An app MAY hold several charts;
-only the one designated by `path` is deployed.
+A Helm chart stored under `apps/<app>/`. An app uses it by setting `path`
+to `apps/<app>/charts/<chart>` with no `url`. An app MAY hold several
+charts; only the one designated by `path` is deployed.
 
 ### 6.5. `apps/<app>/manifests/`
 
@@ -590,8 +590,9 @@ Write access to the repo catalogue at a revision a cluster reads
 (`repo.catalog.revision`) gives control of everything the repo platform does
 not override, on every cluster that has an instance of the app. A source,
 remote base or chart dependency outside both repositories, or read from
-either of them at a revision other than the one the cluster reads (`url`
-and `revision`, Section 8.2; the `?ref=` of a Kustomize remote base),
+either of them at a revision other than the `repo.catalog.revision` or
+`repo.platform.revision` the cluster reads it at (`url` and `revision`,
+Section 8.2; the `?ref=` of a Kustomize remote base, or its absence),
 extends the same trust to that repository or revision.
 
 A library of `lib/` is part of the source of every instance whose
@@ -676,4 +677,4 @@ catalogue's `app.yaml` of `argocd`, which the instance declares anew; in the
 
 [`charts/therealm-layout/`](charts/therealm-layout/) is a Helm chart that
 implements this layout for Argo CD; it is outside the scope of this
-document.
+document, except as a system deploying the layout (Sections 8.4, 10.4).
