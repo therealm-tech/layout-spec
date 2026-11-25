@@ -43,11 +43,13 @@ applications and validating files are outside its scope.
   it, and to the repo catalogue when that is a different repository.
 - [Helm](https://helm.sh/docs/intro/install/) ≥ 3.8, to render the chart
   locally.
+- [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl), with access to
+  the cluster running Argo CD, to apply the bootstrap manifest.
 
 ### Installation
 
 ```sh
-git clone git@github.com:therealm-tech/layout-spec.git
+git clone https://github.com/therealm-tech/layout-spec.git
 ```
 
 ### Configuration
@@ -76,7 +78,8 @@ In a real repository, each Argo CD instance is bootstrapped by one manifest
 holding a root `Application` per cluster it manages, which renders this chart
 with that cluster's `cluster.yaml`. The example's
 [`clusters/mgmt-1/root.yaml`](example/clusters/mgmt-1/root.yaml) is such a
-manifest; apply it once:
+manifest. Apply a repository's own manifest once, from the repo platform's
+layout root:
 
 ```sh
 kubectl apply -f clusters/mgmt-1/root.yaml
