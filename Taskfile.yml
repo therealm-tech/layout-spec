@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+
+set:
+  - errexit
+  - nounset
+  - pipefail
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  setup:
+    desc: Install the git hooks
+    cmds:
+      - pre-commit install
+
+  lint:
+    desc: Run every pre-commit hook on the whole repository
+    cmds:
+      - pre-commit run --all-files {{.CLI_ARGS}}
+
+  test:
+    desc: Render the chart against every cluster of the example
+    vars:
+      CLUSTERS:
+        sh: ls example/clusters
+    cmds:
+      - for:
+          var: CLUSTERS
+        task: render
+        vars:
+          CLUSTER: '{{.ITEM}}'
+
+  render:
+    desc: Render the chart against one cluster of the example (CLUSTER=<name>)
+    requires:
+      vars:
+        - CLUSTER
+    cmds:
+      - >-
+        helm template "root-{{.CLUSTER}}" charts/therealm-layout
+        --namespace argocd
+        -f "example/clusters/{{.CLUSTER}}/cluster.yaml"
+        --set "cluster={{.CLUSTER}}"

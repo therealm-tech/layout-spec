@@ -2,111 +2,102 @@
 
 Changes go through GitHub on
 [therealm-tech/layout-spec](https://github.com/therealm-tech/layout-spec): the
-pre-commit hooks pass locally, the same hooks and a chart render pass in CI.
+pre-commit hooks pass locally, the same hooks and the chart renders pass in CI.
 
 ## Development setup
 
 See [README.md](README.md#getting-started) for what the repository holds and
 how the chart is used.
 
-Tools the hooks and the chart render shell out to:
+[mise](https://mise.jdx.dev) installs every tool the hooks, the tests and the
+tasks run, at the versions pinned in [`mise.toml`](mise.toml) and locked in
+[`mise.lock`](mise.lock). Install mise itself, on macOS or Linux:
 
-| Tool | Version | Used by |
-| --- | --- | --- |
-| [pre-commit](https://pre-commit.com) | ≥ 4 | every hook |
-| [Go](https://go.dev/doc/install) | ≥ 1.26 | installing `jsonnetfmt` and `helm-docs` below |
-| [Helm](https://helm.sh/docs/intro/install/) | ≥ 3.8 | `helm-lint`, chart render |
-| [helm-docs](https://github.com/norwoodj/helm-docs) | 1.14.2 | `helm-docs`, `scripts/release.sh` |
-| [go-jsonnet](https://github.com/google/go-jsonnet) `jsonnetfmt` | 0.22.0 | `jsonnetfmt` |
-| [Trivy](https://trivy.dev/latest/getting-started/installation/) | ≥ 0.76 | `trivy-chart` |
-
-`yamllint`, `actionlint` and `shellcheck` are installed by pre-commit itself.
-
-Install pre-commit:
-
-```sh
-uv tool install pre-commit
+```bash
+curl https://mise.run | sh
 ```
 
-Install `jsonnetfmt` and `helm-docs`:
+Other install methods are on [mise's install page](https://mise.jdx.dev/installing-mise.html),
+along with how to activate mise in your shell, which puts the tools on your
+`PATH`. Then, from a fresh clone, trust the repository's mise configuration, install
+the tools and the git hooks:
 
-```sh
-go install github.com/google/go-jsonnet/cmd/jsonnetfmt@v0.22.0
+```bash
+mise trust
 ```
 
-```sh
-go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.14.2
+```bash
+mise install
 ```
 
-Helm and Trivy have no distro-neutral package: follow their upstream install
-pages linked in the table above.
-
-Then, from a fresh clone, install the hooks:
-
-```sh
-pre-commit install
+```bash
+task setup
 ```
 
-The setup works when `pre-commit run --all-files` passes.
+The commands contributors run are tasks in [`Taskfile.yml`](Taskfile.yml);
+`task --list` shows them. The setup works when `task lint` passes.
 
 ## Running the tests
 
-The repository has no test suite. The chart is checked by `helm lint` (a
-pre-commit hook) and by rendering it against each cluster of the example,
-which CI does too:
+The tests render the chart against each cluster of the example; `helm lint`
+runs with the pre-commit hooks. Render every cluster:
 
-```sh
-helm template root-mgmt-1 charts/therealm-layout --namespace argocd -f example/clusters/mgmt-1/cluster.yaml --set cluster=mgmt-1
+```bash
+task test
 ```
 
-Replace `mgmt-1` with any directory under `example/clusters/`. A change to the
-chart or to the layout updates the example in the same change, so that it
-keeps rendering and keeps illustrating [SPEC.md](SPEC.md).
+Render a single cluster, named after its directory under `example/clusters/`:
+
+```bash
+task render CLUSTER=mgmt-1
+```
+
+A change to the chart or to the layout updates the example in the same
+change, so that it keeps rendering and keeps illustrating [SPEC.md](SPEC.md).
 
 ## Pre-commit hooks
 
-Hooks must pass before a commit is pushed. Run them all, or one while
-iterating:
+Hooks must pass before a commit is pushed. `task setup` installs them. Run
+them all, or one while iterating:
 
-```sh
-pre-commit run --all-files
+```bash
+task lint
 ```
 
-```sh
+```bash
 pre-commit run <hook-id> --all-files
 ```
 
-The hooks are defined in [`.pre-commit-config.yaml`](.pre-commit-config.yaml):
+The hooks are defined in [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
+Those whose failure needs explaining:
 
 | Hook | Checks | Fix |
 | --- | --- | --- |
-| `trailing-whitespace`, `end-of-file-fixer` | whitespace | fixes itself; re-run |
-| `check-yaml` | YAML parses | fix the file |
-| `check-added-large-files`, `check-merge-conflict`, `detect-private-key` | accidental commits | remove the file or marker |
 | `yamllint` | YAML style, per [`.yamllint.yaml`](.yamllint.yaml) | fix the file |
-| `actionlint` | GitHub Actions workflows | fix the workflow |
-| `shellcheck` | shell scripts, such as [`scripts/release.sh`](scripts/release.sh) | fix the script |
-| `no-co-authors` | no `Co-Authored-By:` or `Generated with` line in a commit message | rewrite the message |
-| `jsonnetfmt` | Jsonnet formatting | fixes itself; re-run |
+| `no-co-authors` | no `Co-Authored-By:` or `Generated with` line in a commit message; `--all-files` skips it | rewrite the message |
+| `jsonnet-format`, `mise-fmt` | Jsonnet and `mise.toml` formatting | fixes itself; re-run |
 | `helm-lint` | `charts/therealm-layout`, with `values-lint.yaml` | fix the chart |
+| `helm-lint-whoami` | the example's `whoami` chart | fix the chart |
 | `helm-docs` | the chart's `README.md` matches its `values.yaml` | fixes itself; commit the regenerated README |
 | `trivy-chart` | Kubernetes misconfigurations in the rendered chart | fix the chart |
 
 `--no-verify` and `SKIP=` are not the fix: a red hook is a real finding. If a
 rule is wrong for this repository, change its configuration in the same change
-and say why.
+and say why. CI runs the same hooks, so skipping them locally only moves the
+failure somewhere slower.
 
 ## Continuous integration
 
-| Workflow | Triggers on | What it does | Reproduce locally |
-| --- | --- | --- | --- |
-| [`quality.yaml`](.github/workflows/quality.yaml) | push to `main`, every pull request | `pre-commit run --all-files`; renders the chart for each cluster of `example/` | the commands above |
-| [`chart.yaml`](.github/workflows/chart.yaml) | push of a `chart-*` tag; a manual run on such a tag | checks the tag against the committed versions, packages the chart and pushes it to `oci://ghcr.io/therealm-tech/charts` | `helm package charts/therealm-layout`; the push has no local equivalent |
+| Workflow | Purpose | Reproduce locally |
+| --- | --- | --- |
+| [`quality.yaml`](.github/workflows/quality.yaml) | quality gate: the `lint` and `test` jobs | `task lint`, `task test` |
+| [`chart.yaml`](.github/workflows/chart.yaml) | checks a `chart-*` tag against the committed versions, then publishes the chart to `oci://ghcr.io/therealm-tech/charts` | `helm package charts/therealm-layout`; the push has no local equivalent |
 
-Both `quality.yaml` jobs are required to merge. `chart.yaml` never runs on a
-pull request, and a manual run on anything but a `chart-*` tag fails. Neither
-workflow needs a secret: `chart.yaml` pushes with the `GITHUB_TOKEN` GitHub
-provides, granted `packages: write` in its publishing job only.
+Both jobs of `quality.yaml`, `lint` and `test`, are required to merge. CI
+installs its tools with mise from the same `mise.lock`. `chart.yaml` never runs
+on a pull request, and a manual run on anything but a `chart-*` tag fails.
+Neither workflow needs a secret: `chart.yaml` pushes with the `GITHUB_TOKEN`
+GitHub provides, granted `packages: write` in its publishing job only.
 [Dependabot](.github/dependabot.yaml) keeps the pinned actions and the
 pre-commit hook revisions up to date.
 
@@ -125,11 +116,11 @@ pre-release. [`scripts/release.sh`](scripts/release.sh) is the only supported
 way to cut one: `chart.yaml` refuses a tag that disagrees with the committed
 versions. Run it from a clean `main`, up to date with `origin`:
 
-```sh
+```bash
 scripts/release.sh --dry-run 0.2.0
 ```
 
-```sh
+```bash
 scripts/release.sh 0.2.0
 ```
 
