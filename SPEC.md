@@ -106,7 +106,8 @@ shown here.
 
 - **Set**: A field of `app.yaml` or `cluster.yaml` is set when its key is
   present with a non-null value. A key with a null value is equivalent to an
-  absent key.
+  absent key, except that in an `app.yaml` level it removes the value the
+  less specific levels set (Section 10.2).
 
 - **Plain manifests**: Kubernetes manifests deployed as they are written,
   with no Helm, Kustomize or Jsonnet processing.
@@ -330,8 +331,10 @@ under it MUST NOT declare a resource that the app's source also renders.
 
 An `app.yaml` file is a YAML [YAML] document whose only root key is `app`.
 It MUST NOT contain any other root key. An empty file, or a file whose `app`
-key holds an empty mapping or null, contributes nothing to the effective
-configuration.
+key holds an empty mapping, contributes nothing to the effective
+configuration. A file whose `app` key is null discards the `app` mappings of
+the less specific levels (Section 10.2); `app:` with no value after it is
+null [YAML], not an empty mapping.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -507,21 +510,27 @@ turn by the env, cluster×app and instance `app` mappings:
 
 - when a key holds a mapping at both levels, the two mappings are combined
   key by key, recursively;
-- otherwise, a key set at the more specific level replaces the value at the
-  less specific one. Scalars and sequences are replaced as a whole: a
+- otherwise, a key present at the more specific level replaces the value at
+  the less specific one. Scalars and sequences are replaced as a whole: a
   sequence is never concatenated with the sequence of another level.
-  `false` or an empty sequence is set, and replaces the value below it; a
-  null value is not set, and does not.
+  `false`, an empty sequence and null replace the value below them like any
+  other value.
 
-A more specific level can therefore replace any value, but never remove a
-key that a less specific level sets. An app whose catalogue `app.yaml` sets
-`chart` cannot become a `path` app at a lower level, and a `namespace` set
-by the catalogue cannot be removed.
+A null value therefore removes a key that a less specific level sets: the
+key is not set in the effective configuration unless a more specific level
+sets it again. The same holds for `app` itself: a level whose `app` key is
+null discards the `app` mappings of the less specific levels, and the
+effective configuration is made of the more specific levels only.
+
+A more specific level can replace or remove any value that a less
+specific level sets. An app whose catalogue `app.yaml` sets `chart` becomes a
+`path` app at a level that sets `chart` to null and sets `path`.
 
 In particular, labels and annotations under `managedNamespaceMetadata`
-accumulate across levels, while `syncOptions` or `ignoreDifferences` set at
-a level replaces the whole sequence of the levels below it: its entries are
-never combined with the entries of another level.
+accumulate across levels, and one set to null at a level is removed, while
+`syncOptions` or `ignoreDifferences` set at a level replaces the whole
+sequence of the levels below it: its entries are never combined with the
+entries of another level.
 
 ### 10.3. Effective Helm values
 
@@ -574,9 +583,12 @@ write access to every cluster that has an instance of any of them.
 The repo platform chooses which repo catalogue a cluster reads, and at
 which revision, through `repo.catalog` in `cluster.yaml`. Its `app.yaml`
 levels can replace any catalogue value, `chart`, `path`, `url` and
-`revision` included, but cannot remove any key the catalogue `app.yaml` sets
-(Section 10.2); its `values.yaml` levels can remove catalogue values with
-null (Section 10.3).
+`revision` included, and remove any of them with null (Section 10.2); its
+`values.yaml` levels can remove catalogue values with null as well
+(Section 10.3). Nothing the repo catalogue sets, such as a namespace label
+enforcing a Pod Security level, binds the repo platform: a constraint that
+must hold whatever the repo platform says belongs outside the layout, for
+example in the Argo CD project or in an admission policy of the cluster.
 
 An `ignoreDifferences` entry hides from Argo CD every change to the fields it
 selects, including a change made in the cluster outside the layout; with
@@ -635,7 +647,10 @@ holds five apps:
 It has three envs and three clusters, one of which holds two envs and one
 of which pins the repo catalogue to a tag. On that cluster, the instance of
 `whoami` adds a HorizontalPodAutoscaler from its `manifests/` and has Argo
-CD ignore the replica count it sets on the app's Deployment.
+CD ignore the replica count it sets on the app's Deployment. On the cluster
+that runs Argo CD, a null `app` at the cluster×app level discards the
+catalogue's `app.yaml` of `argocd`, which the instance declares anew; in the
+`dev` env, `whoami` removes a namespace label of the catalogue with a null.
 
 [`charts/therealm-layout/`](charts/therealm-layout/) is a Helm chart that
 implements this layout for Argo CD; it is outside the scope of this

@@ -1,0 +1,4 @@
+# A null app discards the catalogue's app.yaml of argocd on this cluster,
+# whose argocd namespace exists before Argo CD does: the instance declares
+# the app anew, without creating or labelling that namespace.
+app: null

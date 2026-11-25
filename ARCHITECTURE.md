@@ -93,10 +93,11 @@ flowchart TB
   parameter set, and no `Application`. A missing env or cluster×app file
   contributes nothing. The matrix then lays the instance's own `app.yaml` over
   the merged result. Both steps merge parameters recursively: nested mappings
-  combine key by key, scalars and sequences are replaced whole.
-- **Source.** The patch reads the effective `app` mapping: `chart` or `path`,
-  `url` and `revision`, or the catalogue's URL and revision with the
-  catalogue's layout root prepended to `path` when `url` is not set. A Helm
+  combine key by key, scalars, sequences and null are replaced whole.
+- **Source.** The patch reads the effective `app` mapping, where a key
+  holding null counts as unset: `chart` or `path`, `url` and `revision`, or
+  the catalogue's URL and revision with the catalogue's layout root
+  prepended to `path` when `url` is not set. A Helm
   source gets the four levels' `values.yaml` as value files, through `ref`
   sources named `catalog` and `platform`. A source `apps/<app>/jsonnet` gets
   the catalogue's `lib/` as its Jsonnet library path, and `lib/` among the
@@ -112,6 +113,9 @@ flowchart TB
   server, with no plugin, sidecar or controller of its own to deploy and
   keep compatible. The cost is that the merge semantics are those of the
   generators, and the specification's rules have to be expressible in them.
+  Null is one of them: the generators let a null at a more specific level
+  remove a key, and SPEC.md adopts that rather than have the patch merge
+  the levels itself, from each level's `app` passed separately.
 - **One release per cluster, no clusters generator.** Each release names its
   cluster, and every `Application` targets it by name through
   `destination.name`. A cluster missing from Argo CD shows up as failing

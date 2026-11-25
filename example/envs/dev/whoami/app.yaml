@@ -1,2 +1,7 @@
 app:
   namespace: whoami-dev
+  managedNamespaceMetadata:
+    labels:
+      # Null removes the catalogue's label: dev warns instead of enforcing.
+      pod-security.kubernetes.io/enforce: null
+      pod-security.kubernetes.io/warn: restricted
