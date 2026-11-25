@@ -80,6 +80,7 @@ Those whose failure needs explaining:
 | `helm-lint-whoami` | the example's `whoami` chart | fix the chart |
 | `helm-docs` | the chart's `README.md` matches its `values.yaml` | fixes itself; commit the regenerated README |
 | `trivy-chart` | Kubernetes misconfigurations in the rendered chart | fix the chart |
+| `renovate-config-validator` | [`renovate.json`](renovate.json), with `--strict`: an option Renovate has renamed fails | apply the migrated configuration it prints |
 
 `--no-verify` and `SKIP=` are not the fix: a red hook is a real finding. If a
 rule is wrong for this repository, change its configuration in the same change
@@ -93,16 +94,27 @@ failure somewhere slower.
 | [`quality.yaml`](.github/workflows/quality.yaml) | quality gate: the `lint` and `test` jobs | `task lint`, `task test` |
 | [`chart.yaml`](.github/workflows/chart.yaml) | checks a `chart-*` tag against the committed versions, then publishes the chart to `oci://ghcr.io/therealm-tech/charts` with a provenance attestation | `helm package charts/therealm-layout`; the push and the attestation have no local equivalent |
 | [`scorecard.yaml`](.github/workflows/scorecard.yaml) | grades the repository's supply-chain practices with [OpenSSF Scorecard](https://scorecard.dev), for the README badge and code scanning | — |
+| [`renovate.yaml`](.github/workflows/renovate.yaml) | runs Renovate, daily and on demand | no local equivalent; a manual run with `dryRun` logs what it would do |
 
 Both jobs of `quality.yaml`, `lint` and `test`, are required to merge. CI
-installs its tools with mise from the same `mise.lock`. `chart.yaml` and
-`scorecard.yaml` never run on a pull request, and a manual run of `chart.yaml`
-on anything but a `chart-*` tag fails. No workflow needs a secret: they use the
-`GITHUB_TOKEN` GitHub provides. `chart.yaml` grants it `packages: write`, and
-the OIDC token Sigstore certifies (`id-token: write`), in its publishing job
-only; `scorecard.yaml` takes an OIDC token to sign the results it publishes.
-[Dependabot](.github/dependabot.yaml) keeps the pinned actions and the
-pre-commit hook revisions up to date.
+installs its tools with mise from the same `mise.lock`. `chart.yaml`,
+`scorecard.yaml` and `renovate.yaml` never run on a pull request, and a manual
+run of `chart.yaml` on anything but a `chart-*` tag fails. `chart.yaml` and
+`scorecard.yaml` use the `GITHUB_TOKEN` GitHub provides. `chart.yaml` grants it
+`packages: write`, and the OIDC token Sigstore certifies (`id-token: write`), in
+its publishing job only; `scorecard.yaml` takes an OIDC token to sign the
+results it publishes. `renovate.yaml` authenticates with the `RENOVATE_TOKEN`
+secret: a pull request opened with the `GITHUB_TOKEN` would trigger no CI.
+
+[Renovate](https://docs.renovatebot.com), configured in
+[`renovate.json`](renovate.json), keeps every pinned version up to date: the
+actions, the pre-commit hook revisions, the tools in `mise.toml` and
+`mise.lock`, and the charts and manifests the example pins. Its pull requests
+group minor and patch bumps per ecosystem and give each major its own; none
+merges automatically, each is read and merged like any other change. The
+Dependency dashboard issue lists what Renovate tracks and what it holds back.
+Renovate never bumps the chart's own version: it moves with
+[`scripts/release.sh`](scripts/release.sh) only.
 
 ## Submitting a change
 
