@@ -43,7 +43,7 @@ spec:
   sources:
     - repoURL: ghcr.io/therealm-tech/charts
       chart: therealm-layout
-      targetRevision: 0.1.0
+      targetRevision: 1.0.0
       helm:
         releaseName: root-mgmt-1
         valueFiles:
@@ -81,7 +81,7 @@ spec:
   sources:
     - repoURL: ghcr.io/therealm-tech/charts
       chart: therealm-layout
-      targetRevision: 0.1.0
+      targetRevision: 1.0.0
       helm:
         releaseName: root-nonprod-1
         valueFiles:
@@ -119,7 +119,7 @@ spec:
   sources:
     - repoURL: ghcr.io/therealm-tech/charts
       chart: therealm-layout
-      targetRevision: 0.1.0
+      targetRevision: 1.0.0
       helm:
         releaseName: root-prod-eu-1
         valueFiles:

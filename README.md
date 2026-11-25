@@ -75,7 +75,7 @@ artefact `oci://ghcr.io/therealm-tech/charts/therealm-layout`. Render a
 released version from there:
 
 ```sh
-helm template root-prod-eu-1 oci://ghcr.io/therealm-tech/charts/therealm-layout --version 0.1.0 --namespace argocd -f example/clusters/prod-eu-1/cluster.yaml --set cluster=prod-eu-1
+helm template root-prod-eu-1 oci://ghcr.io/therealm-tech/charts/therealm-layout --version 1.0.0 --namespace argocd -f example/clusters/prod-eu-1/cluster.yaml --set cluster=prod-eu-1
 ```
 
 In a real repository, each Argo CD instance is bootstrapped by one manifest
