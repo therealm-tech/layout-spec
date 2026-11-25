@@ -1,20 +1,28 @@
-# -- (string) Cluster to deploy: the name of its Argo CD cluster Secret, and its directory under `clusters/` in the platform repository.
+# -- (string) Cluster to deploy: the name of its Argo CD cluster Secret, and its directory under `clusters/` in the repo platform.
 cluster: ~
+# -- Repositories holding the two roles of the layout. One repository may hold both.
+# @default -- see the keys below
 repo:
+  # -- Repo catalogue: the repository and layout root providing `apps/`.
+  # @default -- see the keys below
   catalog:
-    # -- (string) URL of the catalogue repository, holding `apps/`.
+    # -- (string) URL of the repository holding the repo catalogue.
     url: ~
-    # -- (string) Revision of the catalogue repository: branch, tag or commit.
+    # -- (string) Revision of the repository holding the repo catalogue: branch, tag or commit.
     revision: ~
-    # -- Directory of the catalogue repository the layout starts from. Empty means the repository root.
-    path: ""
+    # -- (string) Layout root of the repo catalogue, relative to the root of its repository. Unset → the repository root.
+    path: ~
+  # -- Repo platform: the repository and layout root providing `envs/` and `clusters/`.
+  # @default -- see the keys below
   platform:
-    # -- (string) URL of the platform repository, holding `envs/` and `clusters/`.
+    # -- (string) URL of the repository holding the repo platform.
     url: ~
-    # -- (string) Revision of the platform repository: branch, tag or commit.
+    # -- (string) Revision of the repository holding the repo platform: branch, tag or commit.
     revision: ~
-    # -- Directory of the platform repository the layout starts from. Empty means the repository root.
-    path: ""
+    # -- (string) Layout root of the repo platform, relative to the root of its repository. Unset → the repository root.
+    path: ~
+# -- The ApplicationSet this release renders.
+# @default -- see the keys below
 applicationSet:
   # -- (tpl/string) Name of the ApplicationSet, rendered with Helm's `tpl`. Unset → `root-<cluster>`.
   name: ~
@@ -28,6 +36,7 @@ applicationSet:
   goTemplateOptions:
     - missingkey=error
   # -- What the ApplicationSet controller may do to the Applications it generates.
+  # @default -- see the keys below
   syncPolicy:
     # -- Argo CD `applicationsSync` policy: `sync` creates, updates and deletes Applications.
     applicationsSync: sync
@@ -35,9 +44,13 @@ applicationSet:
     preserveResourcesOnDeletion: true
   # -- (int) Polling interval of every git generator, in seconds. Unset → Argo CD's default.
   requeueAfterSeconds: ~
+# -- Shortening of the names the chart generates.
+# @default -- see the keys below
 names:
   # -- Maximum length of a generated Application name or Helm release name, at least 10. A longer name keeps its first `maxLength - 9` characters, then gets `-` and the first 8 hex characters of its sha256. 53 is Helm's limit on release names.
   maxLength: 53
+# -- Each Application the ApplicationSet generates, one per instance.
+# @default -- see the keys below
 application:
   # -- (string) Name of each Application, as an ApplicationSet Go template reading `.values.cluster`, `.values.env`, `.values.app` and `.values.instance`. Unset → `<cluster>-<env>-<app>-<instance>`, shortened to `names.maxLength`. Set → used as is: keeping it short enough is then up to you.
   name: ~
@@ -53,15 +66,20 @@ application:
   manifestGeneratePaths: true
   # -- (string) Project of an Application whose `app.yaml` sets none. Unset → every app must set `app.project`.
   defaultProject: ~
+  # -- Sync policy of each Application.
+  # @default -- see the keys below
   syncPolicy:
     # -- (object) Automated sync of each Application, as in an Application's `syncPolicy.automated`. Empty → manual sync.
     automated: {}
     # -- (list) Sync options added to the ones each `app.yaml` declares.
     syncOptions: []
     # -- Retry policy of a failed sync. `null` → no retry.
+    # @default -- see the keys below
     retry:
       # -- Maximum number of retries.
       limit: 10
+      # -- Exponential backoff between two retries.
+      # @default -- see the keys below
       backoff:
         # -- Delay before the first retry.
         duration: 15s
@@ -69,11 +87,15 @@ application:
         factor: 2
         # -- Maximum delay between two retries.
         maxDuration: 5m
+  # -- Helm source of a chart app.
+  # @default -- see the keys below
   helm:
     # -- (string) Helm release name of a chart app, as an ApplicationSet Go template with the same parameters as `application.name`. Unset → `<app>`, shortened to `names.maxLength`. Set → used as is: keeping it short enough is then up to you.
     releaseName: ~
     # -- Skip the layout's `values.yaml` files that do not exist. Disabled, every level must provide one.
     ignoreMissingValueFiles: true
+  # -- Raw manifests applied from each instance directory.
+  # @default -- see the keys below
   manifests:
     # -- Glob of the raw manifests applied from an instance directory, relative to it.
     include: manifests/*.yaml
