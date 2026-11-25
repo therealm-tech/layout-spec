@@ -93,7 +93,7 @@ shown here.
 - **Cluster**: A Kubernetes cluster known to Argo CD, identified by its name
   `<cluster>`, which is the name Argo CD knows it by.
 
-- **Cluster×app**: The level `clusters/<cluster>/<app>/` (Section 7.2).
+- **Cluster×app**: The level `clusters/<cluster>/apps/<app>/` (Section 7.2).
 
 - **Instance**: One deployment of one app in one env on one cluster,
   identified by the tuple (`<cluster>`, `<env>`, `<app>`, `<instance>`).
@@ -170,18 +170,12 @@ MUST be a valid DNS label as defined in Section 2.1 of [RFC1123], restricted
 to lowercase: lowercase letters, digits and `-`, starting and ending with a
 letter or a digit, at most 63 characters.
 
-Under `clusters/<cluster>/`, an `<env>` name MUST NOT be the name of an app
-of the repo catalogue that `<cluster>` reads: `clusters/<cluster>/<name>/`
-is a cluster×app directory when `<name>` is such an app (Section 7.2), and
-an env directory otherwise (Section 7.3). This classification is made
-against the repo catalogue at the `repo.catalog.revision` read by that
-cluster: adding an app to the catalogue, or moving that revision, can turn
-an existing env directory into a cluster×app directory.
-
-The file names `cluster.yaml` and `root.yaml` are reserved directly under
-`clusters/<cluster>/`. The layout assigns a meaning to `cluster.yaml`
-(Section 9). It reserves the OPTIONAL file `root.yaml` for bootstrapping
-Argo CD; its content is outside the scope of this document.
+The names `cluster.yaml`, `root.yaml`, `apps` and `envs` are reserved
+directly under `clusters/<cluster>/`. The layout assigns a meaning to
+`cluster.yaml` (Section 9), `apps/` (Section 7.2) and `envs/` (Section 7.3).
+It reserves the OPTIONAL file `root.yaml` for bootstrapping Argo CD; its
+content is outside the scope of this document. Any other file or directory
+directly under `clusters/<cluster>/` has no meaning in the layout.
 
 ## 6. The Repo Catalogue
 
@@ -249,15 +243,17 @@ clusters/
   <cluster>/
     cluster.yaml               REQUIRED (Section 7.4)
     root.yaml                  OPTIONAL, reserved (Section 5)
-    <app>/                     cluster×app level
-      app.yaml                 OPTIONAL
-      values.yaml              OPTIONAL
-    <env>/
-      <app>/
-        <instance>/
-          app.yaml             defines the instance, MAY be empty (Section 7.3)
-          values.yaml          OPTIONAL
-          manifests/           OPTIONAL  plain manifests
+    apps/
+      <app>/                   cluster×app level
+        app.yaml               OPTIONAL
+        values.yaml            OPTIONAL
+    envs/
+      <env>/
+        <app>/
+          <instance>/
+            app.yaml           defines the instance, MAY be empty (Section 7.3)
+            values.yaml        OPTIONAL
+            manifests/         OPTIONAL  plain manifests
 ```
 
 ### 7.1. Environments
@@ -270,19 +266,26 @@ exists.
 
 ### 7.2. Cluster×app
 
-`clusters/<cluster>/<app>/app.yaml` and `clusters/<cluster>/<app>/values.yaml`
-are the cluster×app level: they apply to every instance of `<app>` on
-`<cluster>`, whatever its env. Both are OPTIONAL.
+`clusters/<cluster>/apps/<app>/app.yaml` and
+`clusters/<cluster>/apps/<app>/values.yaml` are the cluster×app level: they
+apply to every instance of `<app>` on `<cluster>`, whatever its env. Both are
+OPTIONAL. A file under `clusters/<cluster>/apps/<app>/` has no effect unless
+an instance of `<app>` on `<cluster>` exists.
 
 ### 7.3. Instances
 
 An instance exists if and only if
-`clusters/<cluster>/<env>/<app>/<instance>/app.yaml` exists. Its content is
-the instance level of the configuration and MAY be empty: an empty file
-deploys the instance with the configuration resolved from the other levels.
+`clusters/<cluster>/envs/<env>/<app>/<instance>/app.yaml` exists. Its
+content is the instance level of the configuration and MAY be empty: an
+empty file deploys the instance with the configuration resolved from the
+other levels.
+
+`clusters/<cluster>/envs/<env>/` and `clusters/<cluster>/envs/<env>/<app>/`
+only group instances: they are not levels of the configuration, and a file
+directly in either of them has no meaning in the layout.
 
 `<app>` MUST be an app of the repo catalogue read by `<cluster>`, at
-`repo.catalog.revision` (Section 5). `<env>` is
+`repo.catalog.revision` (Section 6.1). `<env>` is
 any name allowed by Section 5; no file under `envs/<env>/` is required.
 
 `values.yaml` in the instance directory is the instance level of the Helm
@@ -464,8 +467,8 @@ The configuration of the instance (`<cluster>`, `<env>`, `<app>`,
 |---|---|---|---|
 | catalogue | `apps/<app>/app.yaml` | `apps/<app>/values.yaml` | repo catalogue |
 | env | `envs/<env>/<app>/app.yaml` | `envs/<env>/<app>/values.yaml` | repo platform |
-| cluster×app | `clusters/<cluster>/<app>/app.yaml` | `clusters/<cluster>/<app>/values.yaml` | repo platform |
-| instance | `clusters/<cluster>/<env>/<app>/<instance>/app.yaml` | `clusters/<cluster>/<env>/<app>/<instance>/values.yaml` | repo platform |
+| cluster×app | `clusters/<cluster>/apps/<app>/app.yaml` | `clusters/<cluster>/apps/<app>/values.yaml` | repo platform |
+| instance | `clusters/<cluster>/envs/<env>/<app>/<instance>/app.yaml` | `clusters/<cluster>/envs/<env>/<app>/<instance>/values.yaml` | repo platform |
 
 A missing file contributes nothing. The catalogue and instance `app.yaml`
 files define the app and the instance (Sections 6.1, 7.3); every other level
@@ -547,10 +550,6 @@ An `ignoreDifferences` entry hides from Argo CD every change to the fields it
 selects, including a change made in the cluster outside the layout; with
 `RespectIgnoreDifferences=true`, a sync does not revert it either. An entry
 SHOULD select only the resources and fields that are expected to drift.
-
-Adding an app named like an env reclassifies that env's directory on every
-cluster that reads the catalogue (Section 5), which removes its
-instances.
 
 ## 12. IANA Considerations
 
