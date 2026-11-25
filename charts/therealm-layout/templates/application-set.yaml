@@ -24,12 +24,12 @@ nested under goTemplate, so every merge child carries the same `values` map.
   "repoURL" $platformURL
   "revision" $platformRevision
   "pathParamPrefix" "instanceFile"
-  "files" (list (dict "path" (printf "%sclusters/%s/*/*/*/app.yaml" $platformPath $cluster)))
+  "files" (list (dict "path" (printf "%sclusters/%s/envs/*/*/*/app.yaml" $platformPath $cluster)))
   "values" (dict
     "cluster" $cluster
-    "env" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 2))
-    "app" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 3))
-    "instance" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 4))) }}
+    "env" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 3))
+    "app" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 4))
+    "instance" (printf "{{ index .instanceFile.path.segments %d }}" (add $platformDepth 5))) }}
 {{- $mergeValues := dict "app" "{{ .values.app }}" }}
 {{- $catalogApp := dict
   "repoURL" $catalogURL
@@ -47,7 +47,7 @@ nested under goTemplate, so every merge child carries the same `values` map.
   "repoURL" $platformURL
   "revision" $platformRevision
   "pathParamPrefix" "clusterAppFile"
-  "files" (list (dict "path" (printf "%sclusters/%s/{{ .values.app }}/app.yaml" $platformPath $cluster)))
+  "files" (list (dict "path" (printf "%sclusters/%s/apps/{{ .values.app }}/app.yaml" $platformPath $cluster)))
   "values" $mergeValues }}
 {{- with .Values.applicationSet.requeueAfterSeconds }}
 {{- range (list $instances $catalogApp $envApp $clusterApp) }}
@@ -76,7 +76,7 @@ nested under goTemplate, so every merge child carries the same `values` map.
 {{- end }}
 {{- $annotations := deepCopy (default (dict) $application.annotations) }}
 {{- if $application.manifestGeneratePaths }}
-{{- $_ := set $annotations "argocd.argoproj.io/manifest-generate-paths" (printf "/%sapps/{{ .values.app }};/%senvs/{{ .values.env }}/{{ .values.app }};/%sclusters/{{ .values.cluster }}/{{ .values.app }};/{{ .instanceFile.path.path }}" $catalogPath $platformPath $platformPath) }}
+{{- $_ := set $annotations "argocd.argoproj.io/manifest-generate-paths" (printf "/%sapps/{{ .values.app }};/%senvs/{{ .values.env }}/{{ .values.app }};/%sclusters/{{ .values.cluster }}/apps/{{ .values.app }};/{{ .instanceFile.path.path }}" $catalogPath $platformPath $platformPath) }}
 {{- end }}
 {{- with $annotations }}
 {{- $_ := set $metadata "annotations" . }}

@@ -21,7 +21,7 @@ spec:
         valueFiles:
           - $catalog/{{ $catalogPath }}apps/{{ .values.app }}/values.yaml
           - $platform/{{ $platformPath }}envs/{{ .values.env }}/{{ .values.app }}/values.yaml
-          - $platform/{{ $platformPath }}clusters/{{ .values.cluster }}/{{ .values.app }}/values.yaml
+          - $platform/{{ $platformPath }}clusters/{{ .values.cluster }}/apps/{{ .values.app }}/values.yaml
           - $platform/{{ .instanceFile.path.path }}/values.yaml
     - repoURL: {{ $catalogURL }}
       targetRevision: {{ $catalogRevision }}
