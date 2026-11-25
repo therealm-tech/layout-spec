@@ -1,14 +1,18 @@
+{{- /*
+A key a level sets to null stays in `.app`, holding null: it is unset, so
+the patch tests a key by its value, never with `hasKey`.
+*/}}
 spec:
   {{- with dig "app" "namespace" "" . }}
   destination:
     namespace: {{ . }}
   {{- end }}
   sources:
-    - repoURL: {{ dig "app" "url" $catalogURL . }}
-      targetRevision: {{ if hasKey .app "url" }}{{ .app.revision }}{{ else }}{{ $catalogRevision }}{{ end }}
-      {{- if hasKey .app "chart" }}
+    - repoURL: {{ dig "app" "url" "" . | default $catalogURL }}
+      targetRevision: {{ if dig "app" "url" "" . }}{{ .app.revision }}{{ else }}{{ $catalogRevision }}{{ end }}
+      {{- if dig "app" "chart" "" . }}
       chart: {{ .app.chart }}
-      {{- else if hasKey .app "url" }}
+      {{- else if dig "app" "url" "" . }}
       path: {{ .app.path }}
       {{- else }}
       path: {{ $catalogPath }}{{ .app.path }}
@@ -25,7 +29,7 @@ spec:
       {{- end }}
       {{- end }}
       {{- /* A chart is either referenced by `chart`, or lives under apps/<app>/charts/. */}}
-      {{- if or (hasKey .app "chart") (regexMatch "^apps/[^/]+/charts/" (dig "app" "path" "" .)) }}
+      {{- if or (dig "app" "chart" "" .) (regexMatch "^apps/[^/]+/charts/" (dig "app" "path" "" .)) }}
       helm:
         releaseName: {{ template "releaseName" . }}
         ignoreMissingValueFiles: {{ $helmIgnoreMissingValueFiles }}
@@ -47,7 +51,7 @@ spec:
       directory:
         recurse: {{ $manifestsRecurse }}
         include: {{ $manifestsInclude | quote }}
-  {{- $syncOptions := concat (dig "app" "syncOptions" (list) .) $extraSyncOptions }}
+  {{- $syncOptions := concat (dig "app" "syncOptions" (list) . | default (list)) $extraSyncOptions }}
   {{- $namespaceMetadata := dig "app" "managedNamespaceMetadata" (dict) . }}
   {{- if or $syncOptions $namespaceMetadata }}
   syncPolicy:

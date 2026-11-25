@@ -1,4 +1,4 @@
 spec:
-  project: "{{ .app.project }}"
+  project: '{{ with dig "app" "project" "" . }}{{ . }}{{ else }}{{ fail "app.project is not set and application.defaultProject is unset" }}{{ end }}'
   destination:
     name: "{{ .values.cluster }}"
