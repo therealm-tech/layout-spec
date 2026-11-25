@@ -10,7 +10,8 @@ chart_ref=oci://ghcr.io/therealm-tech/charts/therealm-layout
 
 usage() {
 	cat <<EOF
-Usage: scripts/release.sh [--dry-run] <version>
+Usage: task release -- [--dry-run] <version>
+       scripts/release.sh [--dry-run] <version>
 
 Cut a release of the therealm-layout chart: set its version, regenerate what
 derives from it, commit, tag chart-<version>, then ask before pushing. Pushing
@@ -31,9 +32,9 @@ Options:
   -h, --help  show this help
 
 Examples:
-  scripts/release.sh --dry-run 0.2.0
-  scripts/release.sh 0.2.0-rc1
-  scripts/release.sh 0.2.0
+  task release -- --dry-run 0.2.0
+  task release -- 0.2.0-rc1
+  task release -- 0.2.0
 EOF
 }
 

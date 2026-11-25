@@ -67,6 +67,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - name: check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,8 +85,28 @@ jobs:
       - name: log in to GHCR
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: printf '%s' "$GITHUB_TOKEN" | helm registry login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
+        # actions/attest pushes the attestation with Docker's credentials, not Helm's.
+        run: |
+          printf '%s' "$GITHUB_TOKEN" | helm registry login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
+          printf '%s' "$GITHUB_TOKEN" | docker login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
       - name: push the chart
+        id: push
         env:
           VERSION: ${{ needs.version.outputs.version }}
-        run: helm push "$RUNNER_TEMP/therealm-layout-${VERSION}.tgz" "$REPOSITORY"
+        # The default shell runs without pipefail: tee would hide a failed push.
+        shell: bash
+        run: |
+          helm push "$RUNNER_TEMP/therealm-layout-${VERSION}.tgz" "$REPOSITORY" 2>&1 | tee "$RUNNER_TEMP/push.log"
+          digest="$(sed -n 's/^Digest: //p' "$RUNNER_TEMP/push.log")"
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "helm push printed no manifest digest to attest." >&2
+            exit 1
+          fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - name: attest the chart
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/therealm-tech/charts/therealm-layout
+          subject-digest: ${{ steps.push.outputs.digest }}
+          subject-version: ${{ needs.version.outputs.version }}
+          push-to-registry: true

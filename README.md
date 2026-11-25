@@ -4,6 +4,8 @@
 
 # layout-spec
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/therealm-tech/layout-spec/badge)](https://scorecard.dev/viewer/?uri=github.com/therealm-tech/layout-spec)
+
 The therealm Argo CD repository layout: where the files describing Argo CD
 deployments live, and a Helm chart that deploys a repository laid out that way.
 
