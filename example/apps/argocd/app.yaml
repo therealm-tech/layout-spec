@@ -6,6 +6,8 @@ app:
   namespace: argocd
   syncOptions:
     - CreateNamespace=true
+    # The Application and ApplicationSet CRDs are past the 262144-byte
+    # annotation limit of a client-side apply.
     - ServerSideApply=true
   managedNamespaceMetadata:
     labels:
