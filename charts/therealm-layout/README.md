@@ -4,7 +4,7 @@
 
 ApplicationSet deploying one cluster's instances from the catalogue and platform repositories.
 
-It implements the layout specified in [`SPEC.md`](../../SPEC.md).
+It implements the layout specified in [`SPEC.md`](https://github.com/therealm-tech/layout-spec/blob/main/SPEC.md).
 
 ## Values
 
